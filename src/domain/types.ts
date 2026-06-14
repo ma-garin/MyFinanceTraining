@@ -50,3 +50,51 @@ export type AppState = {
   hypotheses: Hypothesis[];
   themes: TargetTheme[];
 };
+
+// ─── AI Deep-Dive ───────────────────────────────────────────────────────────
+
+export type AiPromptType = 'association_expand' | 'counter_scenario';
+
+export type AiSettings = {
+  dailyLimit: number;
+  monthlyLimit: number;
+};
+
+export type AiUsageRecord = {
+  date: string;         // YYYY-MM-DD
+  month: string;        // YYYY-MM
+  dailyCount: number;
+  monthlyCount: number;
+};
+
+export type AiCacheEntry = {
+  key: string;          // hypothesisId + ':' + promptType
+  prompt: string;
+  result: string;
+  createdAt: string;    // ISO string
+};
+
+// ─── Backtest ───────────────────────────────────────────────────────────────
+
+export type PriceRow = {
+  date: string;   // YYYY-MM-DD
+  ticker: string;
+  close: number;
+};
+
+export type BacktestEventRow = {
+  hypothesisId: string;
+  eventDate: string;  // YYYY-MM-DD
+  ticker: string;
+  notes: string;
+};
+
+export type BacktestResult = {
+  hypothesisId: string;
+  eventDate: string;
+  ticker: string;
+  notes: string;
+  t1Return: number | null;
+  t3Return: number | null;
+  t5Return: number | null;
+};
