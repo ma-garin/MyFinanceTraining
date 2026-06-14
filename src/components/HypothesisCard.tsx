@@ -1,4 +1,5 @@
 import type { Hypothesis, HypothesisStatus, MarketEvent } from '../domain/types';
+import { AiDeepDive } from './AiDeepDive';
 
 const STATUS_LABELS: Record<HypothesisStatus, string> = {
   adopted: '採用',
@@ -18,9 +19,19 @@ type Props = {
   hypothesis: Hypothesis;
   events: MarketEvent[];
   onStatusChange: (id: string, status: HypothesisStatus) => void;
+  canExecuteAi: boolean;
+  onAiIncrement: () => void;
+  onAiApply: (id: string, steps: { label: string; reason: string }[], conditions: string[]) => void;
 };
 
-export function HypothesisCard({ hypothesis: h, events, onStatusChange }: Props) {
+export function HypothesisCard({
+  hypothesis: h,
+  events,
+  onStatusChange,
+  canExecuteAi,
+  onAiIncrement,
+  onAiApply,
+}: Props) {
   const event = events.find(e => e.id === h.eventId);
 
   return (
@@ -85,6 +96,16 @@ export function HypothesisCard({ hypothesis: h, events, onStatusChange }: Props)
             </button>
           ))}
         </div>
+      </div>
+
+      <div className="ai-section">
+        <AiDeepDive
+          hypothesis={h}
+          event={event}
+          canExecute={canExecuteAi}
+          onIncrement={onAiIncrement}
+          onApply={(steps, conditions) => onAiApply(h.id, steps, conditions)}
+        />
       </div>
     </article>
   );
