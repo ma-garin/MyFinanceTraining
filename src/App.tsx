@@ -10,18 +10,33 @@ import type { AppState, MarketEvent, Hypothesis, HypothesisStatus, BacktestResul
 
 type View = 'dashboard' | 'event-input' | 'association-tree' | 'hypothesis-detail' | 'backtest' | 'settings';
 
-const NAV_ITEMS: { label: string; view: View }[] = [
-  { label: 'ダッシュボード', view: 'dashboard' },
-  { label: 'イベント入力', view: 'event-input' },
-  { label: '連想ツリー', view: 'association-tree' },
-  { label: '仮説詳細', view: 'hypothesis-detail' },
-  { label: 'バックテスト', view: 'backtest' },
-  { label: '設定', view: 'settings' },
+const NAV_ITEMS: { icon: string; label: string; view: View }[] = [
+  { icon: '◈', label: 'ダッシュボード', view: 'dashboard' },
+  { icon: '＋', label: 'イベント',        view: 'event-input' },
+  { icon: '⟿', label: '連想ツリー',      view: 'association-tree' },
+  { icon: '◉', label: '仮説詳細',        view: 'hypothesis-detail' },
+  { icon: '↗', label: 'バックテスト',    view: 'backtest' },
+  { icon: '⚙', label: '設定',           view: 'settings' },
 ];
+
+const CATEGORY_LABELS: Record<string, string> = {
+  geopolitics:   '地政学',
+  macro:         'マクロ',
+  commodity:     'コモディティ',
+  semiconductor: '半導体',
+  currency:      '為替',
+  consumer:      '消費者',
+  other:         'その他',
+};
 
 // ─── Dashboard ───────────────────────────────────────────────────────────────
 
 function DashboardView({ state }: { state: AppState }) {
+  const total    = state.hypotheses.length;
+  const adopted  = state.hypotheses.filter(h => h.status === 'adopted').length;
+  const watching = state.hypotheses.filter(h => h.status === 'watching').length;
+  const needsTest = state.hypotheses.filter(h => h.status === 'needs_test').length;
+
   return (
     <>
       <header className="view-header">
@@ -29,9 +44,28 @@ function DashboardView({ state }: { state: AppState }) {
         <h2>ニュースから連想ツリーを作り、日本市場の仮説へ落とす</h2>
         <p>
           AIを常時使わず、ルールベースと手入力で仮説を管理します。
-          AIは3〜5段階目の深掘り・失敗条件の洗い出しだけに限定します。
+          AIは深掘り・失敗条件の洗い出しだけに限定します。
         </p>
       </header>
+
+      <div className="stat-grid">
+        <div className="stat-card stat-total">
+          <div className="stat-value">{total}</div>
+          <p className="stat-label">仮説 合計</p>
+        </div>
+        <div className="stat-card stat-adopted">
+          <div className="stat-value">{adopted}</div>
+          <p className="stat-label">✓ 採用</p>
+        </div>
+        <div className="stat-card stat-watching">
+          <div className="stat-value">{watching}</div>
+          <p className="stat-label">👁 様子見</p>
+        </div>
+        <div className="stat-card stat-needs-test">
+          <div className="stat-value">{needsTest}</div>
+          <p className="stat-label">🧪 要検証</p>
+        </div>
+      </div>
 
       <div className="grid two-columns">
         <article className="card">
@@ -43,7 +77,7 @@ function DashboardView({ state }: { state: AppState }) {
             {state.events.length === 0 && <p className="empty-msg">イベントがありません</p>}
             {state.events.map(ev => (
               <div className="list-item" key={ev.id}>
-                <span className="badge">{ev.category}</span>
+                <span className={`badge badge-${ev.category}`}>{CATEGORY_LABELS[ev.category] ?? ev.category}</span>
                 <h4>{ev.title}</h4>
                 <p>{ev.summary}</p>
               </div>
@@ -77,7 +111,7 @@ function DashboardView({ state }: { state: AppState }) {
           {state.hypotheses.map(h => (
             <div className="list-item" key={h.id}>
               <span className={`status-pill status-${h.status}`}>
-                {{ adopted: '採用', watching: '様子見', rejected: '棄却', needs_test: '要検証' }[h.status]}
+                {{ adopted: '✓ 採用', watching: '👁 様子見', rejected: '✕ 棄却', needs_test: '🧪 要検証' }[h.status]}
               </span>
               <h4>{h.title}</h4>
               <p>{h.associationSteps[0]?.label} → … → {h.associationSteps[h.associationSteps.length - 1]?.label}</p>
@@ -108,7 +142,7 @@ function EventInputView({ state, onAdd }: { state: AppState; onAdd: (e: MarketEv
           {[...state.events].reverse().map(ev => (
             <div className="list-item" key={ev.id}>
               <div className="list-item-meta">
-                <span className="badge">{ev.category}</span>
+                <span className={`badge badge-${ev.category}`}>{CATEGORY_LABELS[ev.category] ?? ev.category}</span>
                 <span className="date-label">{ev.occurredAt}</span>
               </div>
               <h4>{ev.title}</h4>
@@ -148,7 +182,7 @@ function AssociationTreeView({ state, onAdd, onStatusChange, canExecuteAi, onAiI
       </header>
       <div className="toolbar">
         <button className="btn btn-primary" onClick={() => setShowForm(v => !v)}>
-          {showForm ? '閉じる' : '+ 仮説を追加'}
+          {showForm ? '閉じる' : '＋ 仮説を追加'}
         </button>
       </div>
       {showForm && <HypothesisForm events={state.events} onAdd={handleAdd} />}
@@ -319,18 +353,13 @@ function BacktestView({ hypotheses }: { hypotheses: Hypothesis[] }) {
               <table className="bt-table">
                 <thead>
                   <tr>
-                    <th>銘柄</th>
-                    <th>件数</th>
-                    <th>勝率 T+1</th>
-                    <th>勝率 T+3</th>
-                    <th>勝率 T+5</th>
-                    <th>平均 T+1</th>
-                    <th>平均 T+3</th>
-                    <th>平均 T+5</th>
+                    <th>銘柄</th><th>件数</th>
+                    <th>勝率 T+1</th><th>勝率 T+3</th><th>勝率 T+5</th>
+                    <th>平均 T+1</th><th>平均 T+3</th><th>平均 T+5</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {summary.map(s => (
+                  {summary.map((s: BacktestSummary) => (
                     <tr key={s.ticker}>
                       <td><strong>{s.ticker}</strong></td>
                       <td>{s.count}</td>
@@ -355,13 +384,8 @@ function BacktestView({ hypotheses }: { hypotheses: Hypothesis[] }) {
               <table className="bt-table">
                 <thead>
                   <tr>
-                    <th>仮説 ID</th>
-                    <th>イベント日</th>
-                    <th>銘柄</th>
-                    <th>T+1</th>
-                    <th>T+3</th>
-                    <th>T+5</th>
-                    <th>備考</th>
+                    <th>仮説 ID</th><th>イベント日</th><th>銘柄</th>
+                    <th>T+1</th><th>T+3</th><th>T+5</th><th>備考</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -456,7 +480,7 @@ function SettingsView({ settings, usage, onUpdate }: SettingsProps) {
       </article>
 
       <article className="card">
-        <p style={{ color: '#64748b' }}>
+        <p style={{ color: '#64748b', margin: 0 }}>
           このツールは投資助言・自動売買ツールではありません。
           個人の仮説管理・検証・判断補助のためのOSです。
         </p>
@@ -477,18 +501,19 @@ export default function App() {
       <aside className="sidebar">
         <div className="brand">
           <span className="brand-mark">FT</span>
-          <div>
+          <div className="brand-text">
             <p className="eyebrow">MyFinanceTraining</p>
             <h1>投資仮説OS</h1>
           </div>
         </div>
         <nav className="nav-list" aria-label="Main navigation">
-          {NAV_ITEMS.map(({ label, view: v }) => (
+          {NAV_ITEMS.map(({ icon, label, view: v }) => (
             <button
               key={v}
               className={`nav-btn${view === v ? ' active' : ''}`}
               onClick={() => setView(v)}
             >
+              <span className="nav-icon">{icon}</span>
               {label}
             </button>
           ))}

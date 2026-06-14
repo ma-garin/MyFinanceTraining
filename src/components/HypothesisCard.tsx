@@ -9,10 +9,27 @@ const STATUS_LABELS: Record<HypothesisStatus, string> = {
 };
 
 const DIRECTION_LABELS: Record<string, string> = {
-  up: '↑ 上昇',
-  down: '↓ 下落',
+  up:    '↑ 上昇',
+  down:  '↓ 下落',
   mixed: '↔ 混在',
   watch: '? 様子見',
+};
+
+const CATEGORY_LABELS: Record<string, string> = {
+  geopolitics:   '地政学',
+  macro:         'マクロ',
+  commodity:     'コモディティ',
+  semiconductor: '半導体',
+  currency:      '為替',
+  consumer:      '消費者',
+  other:         'その他',
+};
+
+const STATUS_ICONS: Record<string, string> = {
+  adopted:    '✓',
+  watching:   '👁',
+  rejected:   '✕',
+  needs_test: '🧪',
 };
 
 type Props = {
@@ -42,11 +59,16 @@ export function HypothesisCard({
           <h4>{h.title}</h4>
           {event && (
             <p className="event-ref">
-              <span className="badge">{event.category}</span> {event.title}
+              <span className={`badge badge-${event.category}`}>
+                {CATEGORY_LABELS[event.category] ?? event.category}
+              </span>
+              {event.title}
             </p>
           )}
         </div>
-        <span className={`status-pill status-${h.status}`}>{STATUS_LABELS[h.status]}</span>
+        <span className={`status-pill status-${h.status}`}>
+          {STATUS_ICONS[h.status]} {STATUS_LABELS[h.status]}
+        </span>
       </div>
 
       <ol className="timeline">
