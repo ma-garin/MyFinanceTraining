@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import type { Hypothesis, Direction, MarketEvent } from '../domain/types';
+import { detectTemplates, applyTemplate, type AssociationTemplate } from '../engine/associationEngine';
 
 const DIRECTIONS: { value: Direction; label: string }[] = [
   { value: 'up', label: '↑ 上昇' },
@@ -30,9 +31,27 @@ export function HypothesisForm({ events, onAdd }: Props) {
   const [form, setForm] = useState(emptyForm);
   const [steps, setSteps] = useState<StepDraft[]>(emptySteps);
   const [error, setError] = useState('');
+  const [appliedTemplateId, setAppliedTemplateId] = useState('');
+
+  const templates = useMemo<AssociationTemplate[]>(() => {
+    const event = events.find(e => e.id === form.eventId);
+    return event ? detectTemplates(event) : [];
+  }, [form.eventId, events]);
 
   const updateStep = (idx: number, field: keyof StepDraft, value: string) => {
     setSteps(prev => prev.map((s, i) => i === idx ? { ...s, [field]: value } : s));
+  };
+
+  const handleApplyTemplate = (template: AssociationTemplate) => {
+    const { steps: tSteps, themes, invalidationConditions } = applyTemplate(template);
+    setSteps(tSteps.map(s => ({ label: s.label, reason: s.reason })));
+    setForm(prev => ({
+      ...prev,
+      targetThemes: themes.join(', '),
+      invalidationConditions: invalidationConditions.join('\n'),
+    }));
+    setAppliedTemplateId(template.id);
+    setError('');
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -73,6 +92,7 @@ export function HypothesisForm({ events, onAdd }: Props) {
 
     setForm(emptyForm);
     setSteps(emptySteps);
+    setAppliedTemplateId('');
     setError('');
   };
 
@@ -98,7 +118,10 @@ export function HypothesisForm({ events, onAdd }: Props) {
           <select
             id="hyp-event"
             value={form.eventId}
-            onChange={e => setForm(prev => ({ ...prev, eventId: e.target.value }))}
+            onChange={e => {
+              setForm(prev => ({ ...prev, eventId: e.target.value }));
+              setAppliedTemplateId('');
+            }}
           >
             <option value="">-- 選択 --</option>
             {events.map(ev => (
@@ -120,6 +143,24 @@ export function HypothesisForm({ events, onAdd }: Props) {
           </select>
         </div>
       </div>
+
+      {templates.length > 0 && (
+        <div className="template-suggestions">
+          <p className="eyebrow">ルールベース提案 — クリックで自動入力</p>
+          <div className="template-chips">
+            {templates.map(t => (
+              <button
+                key={t.id}
+                type="button"
+                className={`template-chip-btn${appliedTemplateId === t.id ? ' applied' : ''}`}
+                onClick={() => handleApplyTemplate(t)}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       <fieldset className="step-fieldset">
         <legend>連想ステップ（1〜5段階）</legend>

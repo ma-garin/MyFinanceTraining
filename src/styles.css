@@ -513,6 +513,44 @@ a {
   line-height: 1.8;
 }
 
+/* ─── Rule-based template suggestions ─── */
+.template-suggestions {
+  padding: 14px;
+  border: 1px dashed #38bdf8;
+  border-radius: 14px;
+  background: #f0f9ff;
+}
+
+.template-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.template-chip-btn {
+  padding: 7px 16px;
+  border: 1px solid #7dd3fc;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #0369a1;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+}
+
+.template-chip-btn:hover {
+  background: #e0f2fe;
+  border-color: #38bdf8;
+}
+
+.template-chip-btn.applied {
+  background: #0369a1;
+  color: #ffffff;
+  border-color: #0369a1;
+}
+
 /* ─── Misc ─── */
 .empty-msg {
   color: #94a3b8;
