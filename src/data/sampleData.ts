@@ -1,57 +1,96 @@
-export const sampleEvents = [
-  {
-    id: 'event-001',
-    title: '中東情勢悪化',
-    category: 'geopolitics',
-    occurredAt: '2026-06-14',
-    summary: '原油供給不安、移動費上昇、生活者行動の変化を起点に日本市場の反応を考える。',
-  },
-  {
-    id: 'event-002',
-    title: '米雇用統計上振れ',
-    category: 'macro',
-    occurredAt: '2026-06-14',
-    summary: '金利上昇、AI相場の物語変化、半導体から小売へのローテーションを考える。',
-  },
-];
+import type { AppState } from '../domain/types';
 
-export const sampleHypotheses = [
-  {
-    id: 'MIDEAST-OIL-UP-STAYHOME-GAME-UP',
-    title: '中東情勢悪化から内篭り需要を経由してゲーム関連が意識される',
-    eventId: 'event-001',
-    targetThemes: ['原油', '防衛', 'ゲーム', '旅行警戒'],
-    status: 'needs_test',
-    steps: [
-      '中東情勢悪化',
-      '原油供給不安',
-      '移動費上昇',
-      '外出・旅行心理の低下',
-      '内篭り需要とゲーム関連の連想',
-    ],
-    invalidations: ['全面リスクオフ', '原油高の短期収束', 'ゲーム株の個別材料悪化'],
-  },
-  {
-    id: 'US-JOBS-STRONG-AI-DOWN-JP-RETAIL-UP',
-    title: '強い米雇用統計でAI代替ストーリーが揺らぎ日本小売が逃げ先になる',
-    eventId: 'event-002',
-    targetThemes: ['AI・半導体警戒', '小売', '銀行', 'REIT警戒'],
-    status: 'needs_test',
-    steps: [
-      '米雇用統計が強い',
-      'AIによる雇用代替期待が揺らぐ',
-      'AI・半導体の高PERが正当化しづらくなる',
-      '日本半導体にも売りが波及する',
-      '資金の逃げ先として小売が意識される',
-    ],
-    invalidations: ['雇用強いが金利低下', '半導体好決算', '市場全体の全面リスクオフ'],
-  },
-];
-
-export const targetThemes = [
-  { name: '半導体', examples: ['東京エレクトロン', 'アドバンテスト', 'ディスコ', 'SCREEN', 'レーザーテック'] },
-  { name: '小売', examples: ['百貨店', 'ドラッグストア', 'ディスカウント', 'コンビニ', '専門店'] },
-  { name: '防衛', examples: ['三菱重工', '川崎重工', 'IHI', '日本製鋼所'] },
-  { name: '原油', examples: ['INPEX', '石油資源開発', 'ENEOS', '出光興産'] },
-  { name: 'ゲーム', examples: ['任天堂', 'ソニーG', 'カプコン', 'コナミG', 'バンナムHD'] },
-];
+export const initialState: AppState = {
+  events: [
+    {
+      id: 'event-001',
+      title: '中東情勢悪化',
+      category: 'geopolitics',
+      occurredAt: '2026-06-14',
+      summary: '原油供給不安、移動費上昇、生活者行動の変化を起点に日本市場の反応を考える。',
+    },
+    {
+      id: 'event-002',
+      title: '米雇用統計上振れ',
+      category: 'macro',
+      occurredAt: '2026-06-14',
+      summary: '金利上昇、AI相場の物語変化、半導体から小売へのローテーションを考える。',
+    },
+  ],
+  hypotheses: [
+    {
+      id: 'MIDEAST-OIL-UP-STAYHOME-GAME-UP',
+      title: '中東情勢悪化から内篭り需要を経由してゲーム関連が意識される',
+      eventId: 'event-001',
+      expectedDirection: 'up',
+      targetThemes: ['ゲーム', '旅行警戒'],
+      associationSteps: [
+        { depth: 1, label: '中東情勢悪化', reason: '地政学リスクの高まり' },
+        { depth: 2, label: '原油供給不安', reason: '中東は主要産油地域' },
+        { depth: 3, label: '移動費上昇', reason: 'ガソリン・航空費の上昇' },
+        { depth: 4, label: '外出・旅行心理の低下', reason: 'コスト増で外出を抑制' },
+        { depth: 5, label: '内篭り需要とゲーム関連の連想', reason: '在宅時間増でエンタメ需要' },
+      ],
+      invalidationConditions: ['全面リスクオフ', '原油高の短期収束', 'ゲーム株の個別材料悪化'],
+      status: 'needs_test',
+    },
+    {
+      id: 'US-JOBS-STRONG-AI-DOWN-JP-RETAIL-UP',
+      title: '強い米雇用統計でAI代替ストーリーが揺らぎ日本小売が逃げ先になる',
+      eventId: 'event-002',
+      expectedDirection: 'up',
+      targetThemes: ['小売', 'AI・半導体警戒'],
+      associationSteps: [
+        { depth: 1, label: '米雇用統計が強い', reason: '市場予想を上回る数値' },
+        { depth: 2, label: 'AIによる雇用代替期待が揺らぐ', reason: '人が増えていてもAIで代替はまだ先' },
+        { depth: 3, label: 'AI・半導体の高PERが正当化しづらくなる', reason: '成長ストーリーの根拠が弱まる' },
+        { depth: 4, label: '日本半導体にも売りが波及する', reason: 'グローバルセクターローテーション' },
+        { depth: 5, label: '資金の逃げ先として小売が意識される', reason: '低PER・内需ディフェンシブ' },
+      ],
+      invalidationConditions: ['雇用強いが金利低下', '半導体好決算', '市場全体の全面リスクオフ'],
+      status: 'needs_test',
+    },
+  ],
+  themes: [
+    {
+      id: 'theme-001',
+      name: '半導体',
+      description: '半導体製造装置・材料・設計関連',
+      examples: ['東京エレクトロン', 'アドバンテスト', 'ディスコ', 'SCREEN', 'レーザーテック'],
+      positiveDrivers: ['AI需要増', 'データセンター拡大'],
+      negativeDrivers: ['米中規制強化', '景気後退'],
+    },
+    {
+      id: 'theme-002',
+      name: '小売',
+      description: '国内消費・流通関連',
+      examples: ['百貨店', 'ドラッグストア', 'ディスカウント', 'コンビニ', '専門店'],
+      positiveDrivers: ['賃上げ', '内需回復'],
+      negativeDrivers: ['物価上昇', '消費者心理悪化'],
+    },
+    {
+      id: 'theme-003',
+      name: '防衛',
+      description: '防衛・宇宙・セキュリティ関連',
+      examples: ['三菱重工', '川崎重工', 'IHI', '日本製鋼所'],
+      positiveDrivers: ['防衛費増額', '地政学リスク'],
+      negativeDrivers: ['政策転換', '予算削減'],
+    },
+    {
+      id: 'theme-004',
+      name: '原油',
+      description: '石油・エネルギー関連',
+      examples: ['INPEX', '石油資源開発', 'ENEOS', '出光興産'],
+      positiveDrivers: ['原油高', '地政学リスク'],
+      negativeDrivers: ['原油安', '再エネ転換加速'],
+    },
+    {
+      id: 'theme-005',
+      name: 'ゲーム',
+      description: 'ゲーム・エンタメ関連',
+      examples: ['任天堂', 'ソニーG', 'カプコン', 'コナミG', 'バンナムHD'],
+      positiveDrivers: ['内需回帰', '在宅需要'],
+      negativeDrivers: ['消費者支出低下', 'ヒット作不在'],
+    },
+  ],
+};
