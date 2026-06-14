@@ -2,6 +2,8 @@ import { sampleEvents, sampleHypotheses, targetThemes } from './data/sampleData'
 
 const navItems = ['Dashboard', 'Event Input', 'Association Tree', 'Hypothesis Detail', 'Settings'];
 
+const toAnchor = (label: string) => label.toLowerCase().split(' ').join('-');
+
 function App() {
   return (
     <main className="app-shell">
@@ -15,7 +17,7 @@ function App() {
         </div>
         <nav className="nav-list" aria-label="Main navigation">
           {navItems.map((item) => (
-            <a key={item} href={`#${item.toLowerCase().replaceAll(' ', '-')}`}>
+            <a key={item} href={`#${toAnchor(item)}`}>
               {item}
             </a>
           ))}
