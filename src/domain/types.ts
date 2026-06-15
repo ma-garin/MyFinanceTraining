@@ -25,6 +25,30 @@ export type AssociationStep = {
   reason: string;
 };
 
+// ─── Verification Log ───────────────────────────────────────────────────────
+
+export type VerificationLogResult = 'hit' | 'miss' | 'pending';
+
+export type VerificationLog = {
+  id: string;
+  loggedAt: string;        // YYYY-MM-DD
+  result: VerificationLogResult;
+  note: string;
+};
+
+// ─── Invalidation Rule ──────────────────────────────────────────────────────
+
+export type InvalidationRule = {
+  condition: string;
+  threshold?: {
+    metric: string;
+    operator: '>' | '<' | '>=' | '<=';
+    value: number;
+  };
+};
+
+// ─── Hypothesis ─────────────────────────────────────────────────────────────
+
 export type Hypothesis = {
   id: string;
   title: string;
@@ -34,6 +58,8 @@ export type Hypothesis = {
   associationSteps: AssociationStep[];
   invalidationConditions: string[];
   status: HypothesisStatus;
+  verificationLogs?: VerificationLog[];
+  invalidationRules?: InvalidationRule[];
 };
 
 export type TargetTheme = {
@@ -46,6 +72,7 @@ export type TargetTheme = {
 };
 
 export type AppState = {
+  version?: number;
   events: MarketEvent[];
   hypotheses: Hypothesis[];
   themes: TargetTheme[];

@@ -1,16 +1,35 @@
 import type { PriceRow, BacktestEventRow } from '../domain/types';
 
-const parseLines = (csv: string): string[][] =>
-  csv.trim().split('\n').slice(1).map(line => line.split(',').map(c => c.trim()));
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+// Handles quoted fields (e.g. "7,800.5")
+const parseQuotedCsv = (csv: string): string[][] => {
+  const rows: string[][] = [];
+  for (const line of csv.trim().split('\n').slice(1)) {
+    if (!line.trim()) continue;
+    const cols: string[] = [];
+    let inQuote = false;
+    let cur = '';
+    for (const ch of line) {
+      if (ch === '"') { inQuote = !inQuote; continue; }
+      if (ch === ',' && !inQuote) { cols.push(cur.trim()); cur = ''; }
+      else cur += ch;
+    }
+    cols.push(cur.trim());
+    rows.push(cols);
+  }
+  return rows;
+};
 
 export const parsePriceCsv = (csv: string): PriceRow[] =>
-  parseLines(csv)
-    .filter(cols => cols.length >= 3 && cols[2] !== '')
-    .map(([date, ticker, close]) => ({ date, ticker, close: parseFloat(close) }));
+  parseQuotedCsv(csv)
+    .filter(cols => cols.length >= 3 && DATE_RE.test(cols[0]) && cols[1] && cols[2])
+    .map(([date, ticker, close]) => ({ date, ticker, close: parseFloat(close) }))
+    .filter(r => !Number.isNaN(r.close) && r.close > 0);
 
 export const parseEventCsv = (csv: string): BacktestEventRow[] =>
-  parseLines(csv)
-    .filter(cols => cols.length >= 3)
+  parseQuotedCsv(csv)
+    .filter(cols => cols.length >= 3 && cols[0] && DATE_RE.test(cols[1]) && cols[2])
     .map(([hypothesisId, eventDate, ticker, notes = '']) => ({
       hypothesisId, eventDate, ticker, notes,
     }));
