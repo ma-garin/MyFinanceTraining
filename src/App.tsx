@@ -11,12 +11,12 @@ import type { AppState, MarketEvent, Hypothesis, HypothesisStatus, BacktestResul
 type View = 'dashboard' | 'event-input' | 'association-tree' | 'hypothesis-detail' | 'backtest' | 'settings';
 
 const NAV_ITEMS: { label: string; view: View }[] = [
-  { label: 'Dashboard', view: 'dashboard' },
-  { label: 'Event Input', view: 'event-input' },
-  { label: 'Association Tree', view: 'association-tree' },
-  { label: 'Hypothesis Detail', view: 'hypothesis-detail' },
-  { label: 'Backtest', view: 'backtest' },
-  { label: 'Settings', view: 'settings' },
+  { label: 'ダッシュボード', view: 'dashboard' },
+  { label: 'イベント入力', view: 'event-input' },
+  { label: '連想ツリー', view: 'association-tree' },
+  { label: '仮説詳細', view: 'hypothesis-detail' },
+  { label: 'バックテスト', view: 'backtest' },
+  { label: '設定', view: 'settings' },
 ];
 
 // ─── Dashboard ───────────────────────────────────────────────────────────────
