@@ -11,7 +11,7 @@ const addBusinessDays = (dateStr: string, days: number): string => {
   return d.toISOString().slice(0, 10);
 };
 
-type PriceMap = Map<string, Map<string, number>>; // ticker -> date -> close
+type PriceMap = Map<string, Map<string, number>>; // ticker → date → close
 
 const buildPriceMap = (rows: PriceRow[]): PriceMap => {
   const map: PriceMap = new Map();
@@ -35,11 +35,10 @@ export const runBacktest = (
   const priceMap = buildPriceMap(priceRows);
 
   return eventRows.map(ev => {
-    const base = lookupClose(priceMap, ev.ticker, ev.eventDate);
+    const base   = lookupClose(priceMap, ev.ticker, ev.eventDate);
     const t1Date = addBusinessDays(ev.eventDate, 1);
     const t3Date = addBusinessDays(ev.eventDate, 3);
     const t5Date = addBusinessDays(ev.eventDate, 5);
-
     return {
       hypothesisId: ev.hypothesisId,
       eventDate: ev.eventDate,
@@ -61,16 +60,30 @@ export type BacktestSummary = {
   avgReturn1: number;
   avgReturn3: number;
   avgReturn5: number;
+  stdDev1: number;
+  stdDev3: number;
+  stdDev5: number;
+  maxDrawdown: number;
+  sampleWarning: boolean;
 };
 
 const avg = (nums: number[]): number =>
   nums.length === 0 ? 0 : nums.reduce((a, b) => a + b, 0) / nums.length;
+
+const stdDev = (nums: number[]): number => {
+  if (nums.length < 2) return 0;
+  const mean = avg(nums);
+  return Math.sqrt(nums.reduce((sum, n) => sum + (n - mean) ** 2, 0) / nums.length);
+};
 
 const winRate = (returns: (number | null)[]): number => {
   const valid = returns.filter((r): r is number => r !== null);
   if (valid.length === 0) return 0;
   return valid.filter(r => r > 0).length / valid.length;
 };
+
+const validReturns = (returns: (number | null)[]): number[] =>
+  returns.filter((r): r is number => r !== null);
 
 export const summarizeBacktest = (results: BacktestResult[]): BacktestSummary[] => {
   const byTicker = new Map<string, BacktestResult[]>();
@@ -79,14 +92,26 @@ export const summarizeBacktest = (results: BacktestResult[]): BacktestSummary[] 
     byTicker.get(r.ticker)!.push(r);
   }
 
-  return [...byTicker.entries()].map(([ticker, rows]) => ({
-    ticker,
-    count: rows.length,
-    winRate1: winRate(rows.map(r => r.t1Return)),
-    winRate3: winRate(rows.map(r => r.t3Return)),
-    winRate5: winRate(rows.map(r => r.t5Return)),
-    avgReturn1: avg(rows.map(r => r.t1Return).filter((r): r is number => r !== null)),
-    avgReturn3: avg(rows.map(r => r.t3Return).filter((r): r is number => r !== null)),
-    avgReturn5: avg(rows.map(r => r.t5Return).filter((r): r is number => r !== null)),
-  }));
+  return [...byTicker.entries()].map(([ticker, rows]) => {
+    const v1 = validReturns(rows.map(r => r.t1Return));
+    const v3 = validReturns(rows.map(r => r.t3Return));
+    const v5 = validReturns(rows.map(r => r.t5Return));
+    const maxDD = v5.length === 0 ? 0 : Math.min(0, ...v5);
+
+    return {
+      ticker,
+      count:         rows.length,
+      winRate1:      winRate(rows.map(r => r.t1Return)),
+      winRate3:      winRate(rows.map(r => r.t3Return)),
+      winRate5:      winRate(rows.map(r => r.t5Return)),
+      avgReturn1:    avg(v1),
+      avgReturn3:    avg(v3),
+      avgReturn5:    avg(v5),
+      stdDev1:       stdDev(v1),
+      stdDev3:       stdDev(v3),
+      stdDev5:       stdDev(v5),
+      maxDrawdown:   maxDD,
+      sampleWarning: rows.length < 5,
+    };
+  });
 };

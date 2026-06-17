@@ -1,13 +1,21 @@
-import { useState, useEffect, useCallback } from 'react';
-import type { AppState, MarketEvent, Hypothesis, HypothesisStatus, AssociationStep } from '../domain/types';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import type {
+  AppState, MarketEvent, Hypothesis, HypothesisStatus,
+  AssociationStep, VerificationLog,
+} from '../domain/types';
 import { loadState, saveState } from '../infrastructure/storage';
 import { initialState } from '../data/sampleData';
 
+const DEBOUNCE_MS = 300;
+
 export const useStore = () => {
   const [state, setState] = useState<AppState>(() => loadState() ?? initialState);
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    saveState(state);
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => saveState(state), DEBOUNCE_MS);
+    return () => { if (saveTimer.current) clearTimeout(saveTimer.current); };
   }, [state]);
 
   const addEvent = useCallback((event: MarketEvent) => {
@@ -50,5 +58,29 @@ export const useStore = () => {
     }));
   }, []);
 
-  return { state, addEvent, addHypothesis, updateHypothesisStatus, appendAiResult };
+  const addVerificationLog = useCallback((id: string, log: Omit<VerificationLog, 'id'>) => {
+    const logWithId: VerificationLog = { ...log, id: `log-${Date.now()}` };
+    setState(prev => ({
+      ...prev,
+      hypotheses: prev.hypotheses.map(h =>
+        h.id === id
+          ? { ...h, verificationLogs: [...(h.verificationLogs ?? []), logWithId] }
+          : h
+      ),
+    }));
+  }, []);
+
+  const replaceState = useCallback((next: AppState) => {
+    setState(next);
+  }, []);
+
+  return {
+    state,
+    addEvent,
+    addHypothesis,
+    updateHypothesisStatus,
+    appendAiResult,
+    addVerificationLog,
+    replaceState,
+  };
 };

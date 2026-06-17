@@ -1,12 +1,19 @@
 {
   "name": "MyFinanceTraining",
   "short_name": "FinanceOS",
-  "description": "ニュースと市場イベントから日本市場の投資仮説を管理するPWA",
+  "description": "ニュースと市場イベントから日本株の投資仮説を管理するPWA",
   "start_url": "/MyFinanceTraining/",
   "scope": "/MyFinanceTraining/",
   "display": "standalone",
-  "background_color": "#0f172a",
-  "theme_color": "#0f172a",
+  "background_color": "#0b1422",
+  "theme_color": "#0b1422",
   "lang": "ja",
-  "icons": []
+  "icons": [
+    {
+      "src": "/MyFinanceTraining/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
 }
