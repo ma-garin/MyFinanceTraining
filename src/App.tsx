@@ -14,13 +14,13 @@ import type { AppState, MarketEvent, Hypothesis, HypothesisStatus, BacktestResul
 
 type View = 'dashboard' | 'event-input' | 'association-tree' | 'hypothesis-detail' | 'backtest' | 'settings';
 
-const NAV_ITEMS: { icon: string; label: string; view: View }[] = [
-  { icon: '◈', label: 'ダッシュボード', view: 'dashboard' },
-  { icon: '＋', label: 'イベント',        view: 'event-input' },
-  { icon: '⟿', label: '連想ツリー',      view: 'association-tree' },
-  { icon: '◉', label: '仮説詳細',        view: 'hypothesis-detail' },
-  { icon: '↗', label: 'バックテスト',    view: 'backtest' },
-  { icon: '⚙', label: '設定',           view: 'settings' },
+const NAV_ITEMS: { icon: string; label: string; mobileLabel: string; view: View }[] = [
+  { icon: '◈', label: 'ダッシュボード', mobileLabel: 'ホーム',  view: 'dashboard' },
+  { icon: '＋', label: 'イベント',        mobileLabel: '入力',   view: 'event-input' },
+  { icon: '⟿', label: '連想ツリー',      mobileLabel: '仮説',   view: 'association-tree' },
+  { icon: '◉', label: '仮説詳細',        mobileLabel: '詳細',   view: 'hypothesis-detail' },
+  { icon: '↗', label: 'バックテスト',    mobileLabel: 'テスト', view: 'backtest' },
+  { icon: '⚙', label: '設定',           mobileLabel: '設定',   view: 'settings' },
 ];
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -58,6 +58,41 @@ function ToastContainer({ toasts, onDismiss }: { toasts: Toast[]; onDismiss: (id
         </div>
       ))}
     </div>
+  );
+}
+
+// ─── Mobile Header ────────────────────────────────────────────────────────────
+
+function MobileHeader({ theme, onToggle }: { theme: 'light' | 'dark'; onToggle: () => void }) {
+  return (
+    <header className="app-header-mobile">
+      <div className="mobile-brand">
+        <div className="mobile-brand-mark">FT</div>
+        <span className="mobile-brand-name">投資仮説OS</span>
+      </div>
+      <button className="mobile-theme-btn" onClick={onToggle} aria-label="テーマ切替">
+        {theme === 'dark' ? '☀' : '🌙'}
+      </button>
+    </header>
+  );
+}
+
+// ─── Bottom Nav ───────────────────────────────────────────────────────────────
+
+function BottomNav({ view, onNavigate }: { view: View; onNavigate: (v: View) => void }) {
+  return (
+    <nav className="bottom-nav" aria-label="Main navigation">
+      {NAV_ITEMS.map(({ icon, mobileLabel, view: v }) => (
+        <button
+          key={v}
+          className={`bottom-nav-btn${view === v ? ' active' : ''}`}
+          onClick={() => onNavigate(v)}
+        >
+          <span className="bottom-nav-icon">{icon}</span>
+          <span className="bottom-nav-label">{mobileLabel}</span>
+        </button>
+      ))}
+    </nav>
   );
 }
 
@@ -629,6 +664,8 @@ export default function App() {
 
   return (
     <main className="app-shell">
+      <MobileHeader theme={theme} onToggle={() => setTheme(t => t === 'dark' ? 'light' : 'dark')} />
+
       <aside className="sidebar">
         <div className="brand">
           <span className="brand-mark">FT</span>
@@ -690,6 +727,7 @@ export default function App() {
         )}
       </section>
 
+      <BottomNav view={view} onNavigate={setView} />
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
     </main>
   );
