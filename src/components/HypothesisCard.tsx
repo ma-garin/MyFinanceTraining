@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { Hypothesis, HypothesisStatus, MarketEvent, VerificationLog, VerificationLogResult } from '../domain/types';
+import type { Hypothesis, HypothesisStatus, HypothesisUrgency, MarketEvent, VerificationLog, VerificationLogResult } from '../domain/types';
 import { AiDeepDive } from './AiDeepDive';
 import { todayStr } from '../utils/dateUtils';
 
@@ -34,6 +34,12 @@ const STATUS_ICONS: Record<string, string> = {
   needs_test: '🧪',
 };
 
+const URGENCY_LABELS: Record<HypothesisUrgency, string> = {
+  high:   '🔴 今週中',
+  medium: '🟡 今月中',
+  low:    '🔵 長期',
+};
+
 const VLOG_LABELS: Record<VerificationLogResult, string> = {
   hit:     '✓ 的中',
   miss:    '✕ 外れ',
@@ -44,6 +50,7 @@ type Props = {
   hypothesis: Hypothesis;
   events: MarketEvent[];
   onStatusChange: (id: string, status: HypothesisStatus) => void;
+  onDelete?: (id: string) => void;
   canExecuteAi: boolean;
   onAiIncrement: () => void;
   onAiApply: (id: string, steps: { label: string; reason: string }[], conditions: string[]) => void;
@@ -54,6 +61,7 @@ export function HypothesisCard({
   hypothesis: h,
   events,
   onStatusChange,
+  onDelete,
   canExecuteAi,
   onAiIncrement,
   onAiApply,
@@ -61,6 +69,7 @@ export function HypothesisCard({
 }: Props) {
   const event = events.find(e => e.id === h.eventId);
   const [showLogForm, setShowLogForm] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const [logResult, setLogResult] = useState<VerificationLogResult>('pending');
   const [logNote, setLogNote] = useState('');
 
@@ -76,7 +85,14 @@ export function HypothesisCard({
     <article className="hypothesis-card">
       <div className="hypothesis-title-row">
         <div>
-          <p className="hypothesis-id">{h.id}</p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            <p className="hypothesis-id" style={{ margin: 0 }}>{h.id}</p>
+            {h.urgency && (
+              <span className={`urgency-badge urgency-${h.urgency}`}>
+                {URGENCY_LABELS[h.urgency]}
+              </span>
+            )}
+          </div>
           <h4>{h.title}</h4>
           {event && (
             <p className="event-ref">
@@ -87,9 +103,33 @@ export function HypothesisCard({
             </p>
           )}
         </div>
-        <span className={`status-pill status-${h.status}`}>
-          {STATUS_ICONS[h.status]} {STATUS_LABELS[h.status]}
-        </span>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
+          <span className={`status-pill status-${h.status}`}>
+            {STATUS_ICONS[h.status]} {STATUS_LABELS[h.status]}
+          </span>
+          {onDelete && (
+            confirmDelete ? (
+              <div style={{ display: 'flex', gap: 6 }}>
+                <button
+                  className="btn btn-ghost"
+                  style={{ fontSize: 11, padding: '2px 8px' }}
+                  onClick={() => setConfirmDelete(false)}
+                >キャンセル</button>
+                <button
+                  className="btn"
+                  style={{ fontSize: 11, padding: '2px 8px', background: '#dc2626', color: '#fff', border: 'none' }}
+                  onClick={() => onDelete(h.id)}
+                >削除確定</button>
+              </div>
+            ) : (
+              <button
+                className="btn btn-ghost"
+                style={{ fontSize: 11, padding: '2px 8px', color: 'var(--text-3)' }}
+                onClick={() => setConfirmDelete(true)}
+              >削除</button>
+            )
+          )}
+        </div>
       </div>
 
       <ol className="timeline">
@@ -114,6 +154,17 @@ export function HypothesisCard({
           <p>{h.targetThemes.join(' / ')}</p>
         </div>
       </div>
+
+      {h.candidateStocks && h.candidateStocks.length > 0 && (
+        <div className="candidate-stocks-block">
+          <p className="eyebrow">候補銘柄</p>
+          <div className="candidate-stocks-list">
+            {h.candidateStocks.map(s => (
+              <span key={s} className="stock-chip">{s}</span>
+            ))}
+          </div>
+        </div>
+      )}
 
       {h.invalidationConditions.length > 0 && (
         <div className="invalidation-block">

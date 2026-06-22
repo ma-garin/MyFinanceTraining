@@ -23,7 +23,9 @@ export const initialState: AppState = {
       title: '中東情勢悪化から内篭り需要を経由してゲーム関連が意識される',
       eventId: 'event-001',
       expectedDirection: 'up',
+      urgency: 'medium',
       targetThemes: ['ゲーム', '旅行警戒'],
+      candidateStocks: ['7832 バンダイナムコHD', '9684 スクウェア・エニックス', '7974 任天堂', '3765 ガンホー'],
       associationSteps: [
         { depth: 1, label: '中東情勢悪化',            reason: '地政学リスクの高まり' },
         { depth: 2, label: '原油供給不安',             reason: '中東は主要産油地域' },
@@ -39,7 +41,9 @@ export const initialState: AppState = {
       title: '強い米雇用統計でAI代替ストーリーが揺らぎ日本小売が逃げ先になる',
       eventId: 'event-002',
       expectedDirection: 'up',
+      urgency: 'high',
       targetThemes: ['小売', 'AI・半導体警戒'],
+      candidateStocks: ['3382 セブン＆アイ・ホールディングス', '8267 イオン', '2651 ローソン', '3099 三越伊勢丹HD'],
       associationSteps: [
         { depth: 1, label: '米雇用統計が強い',                       reason: '市場予想を上回る数値' },
         { depth: 2, label: 'AIによる雇用代替期待が揺らぐ',           reason: '人が増えていてもAIで代替はまだ先' },

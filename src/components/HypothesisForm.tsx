@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import type { Hypothesis, Direction, MarketEvent } from '../domain/types';
+import type { Hypothesis, Direction, HypothesisUrgency, MarketEvent } from '../domain/types';
 import { detectTemplates, applyTemplate, type AssociationTemplate } from '../engine/associationEngine';
 
 const DIRECTIONS: { value: Direction; label: string }[] = [
@@ -7,6 +7,12 @@ const DIRECTIONS: { value: Direction; label: string }[] = [
   { value: 'down', label: '↓ 下落' },
   { value: 'mixed', label: '↔ 混在' },
   { value: 'watch', label: '? 様子見' },
+];
+
+const URGENCIES: { value: HypothesisUrgency; label: string }[] = [
+  { value: 'high', label: '🔴 今週中' },
+  { value: 'medium', label: '🟡 今月中' },
+  { value: 'low', label: '🔵 長期観察' },
 ];
 
 type StepDraft = { label: string; reason: string };
@@ -18,7 +24,9 @@ const emptyForm = () => ({
   title: '',
   eventId: '',
   expectedDirection: 'up' as Direction,
+  urgency: 'medium' as HypothesisUrgency,
   targetThemes: '',
+  candidateStocks: '',
   invalidationConditions: '',
 });
 
@@ -43,11 +51,12 @@ export function HypothesisForm({ events, onAdd }: Props) {
   };
 
   const handleApplyTemplate = (template: AssociationTemplate) => {
-    const { steps: tSteps, themes, invalidationConditions } = applyTemplate(template);
+    const { steps: tSteps, themes, candidateStocks, invalidationConditions } = applyTemplate(template);
     setSteps(tSteps.map(s => ({ label: s.label, reason: s.reason })));
     setForm(prev => ({
       ...prev,
       targetThemes: themes.join(', '),
+      candidateStocks: candidateStocks.join('\n'),
       invalidationConditions: invalidationConditions.join('\n'),
     }));
     setAppliedTemplateId(template.id);
@@ -74,6 +83,11 @@ export function HypothesisForm({ events, onAdd }: Props) {
       .map(t => t.trim())
       .filter(Boolean);
 
+    const stocks = form.candidateStocks
+      .split('\n')
+      .map(s => s.trim())
+      .filter(Boolean);
+
     const conditions = form.invalidationConditions
       .split('\n')
       .map(c => c.trim())
@@ -84,14 +98,16 @@ export function HypothesisForm({ events, onAdd }: Props) {
       title: form.title.trim(),
       eventId: form.eventId,
       expectedDirection: form.expectedDirection,
+      urgency: form.urgency,
       targetThemes: themes,
+      candidateStocks: stocks,
       associationSteps: filledSteps,
       invalidationConditions: conditions,
       status: 'needs_test',
     });
 
-    setForm(emptyForm);
-    setSteps(emptySteps);
+    setForm(emptyForm());
+    setSteps(emptySteps());
     setAppliedTemplateId('');
     setError('');
   };
@@ -139,6 +155,19 @@ export function HypothesisForm({ events, onAdd }: Props) {
           >
             {DIRECTIONS.map(d => (
               <option key={d.value} value={d.value}>{d.label}</option>
+            ))}
+          </select>
+        </div>
+
+        <div className="form-group">
+          <label htmlFor="hyp-urgency">緊急度</label>
+          <select
+            id="hyp-urgency"
+            value={form.urgency}
+            onChange={e => setForm(prev => ({ ...prev, urgency: e.target.value as HypothesisUrgency }))}
+          >
+            {URGENCIES.map(u => (
+              <option key={u.value} value={u.value}>{u.label}</option>
             ))}
           </select>
         </div>
@@ -191,6 +220,17 @@ export function HypothesisForm({ events, onAdd }: Props) {
           placeholder="例: ゲーム, 防衛, 小売"
           value={form.targetThemes}
           onChange={e => setForm(prev => ({ ...prev, targetThemes: e.target.value }))}
+        />
+      </div>
+
+      <div className="form-group">
+        <label htmlFor="hyp-stocks">候補銘柄（1行1件、コード＋銘柄名）</label>
+        <textarea
+          id="hyp-stocks"
+          rows={4}
+          placeholder={'8035 東京エレクトロン\n6857 アドバンテスト\n7974 任天堂（相対優位）'}
+          value={form.candidateStocks}
+          onChange={e => setForm(prev => ({ ...prev, candidateStocks: e.target.value }))}
         />
       </div>
 

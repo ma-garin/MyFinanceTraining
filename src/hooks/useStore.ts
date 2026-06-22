@@ -70,6 +70,21 @@ export const useStore = () => {
     }));
   }, []);
 
+  const deleteEvent = useCallback((id: string) => {
+    setState(prev => ({
+      ...prev,
+      events: prev.events.filter(e => e.id !== id),
+      hypotheses: prev.hypotheses.map(h => h.eventId === id ? { ...h, eventId: '' } : h),
+    }));
+  }, []);
+
+  const deleteHypothesis = useCallback((id: string) => {
+    setState(prev => ({
+      ...prev,
+      hypotheses: prev.hypotheses.filter(h => h.id !== id),
+    }));
+  }, []);
+
   const replaceState = useCallback((next: AppState) => {
     setState(next);
   }, []);
@@ -81,6 +96,8 @@ export const useStore = () => {
     updateHypothesisStatus,
     appendAiResult,
     addVerificationLog,
+    deleteEvent,
+    deleteHypothesis,
     replaceState,
   };
 };

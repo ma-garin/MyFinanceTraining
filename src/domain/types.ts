@@ -11,6 +11,8 @@ export type Direction = 'up' | 'down' | 'mixed' | 'watch';
 
 export type HypothesisStatus = 'adopted' | 'watching' | 'rejected' | 'needs_test';
 
+export type HypothesisUrgency = 'high' | 'medium' | 'low';
+
 export type MarketEvent = {
   id: string;
   title: string;
@@ -55,6 +57,8 @@ export type Hypothesis = {
   eventId: string;
   expectedDirection: Direction;
   targetThemes: string[];
+  candidateStocks: string[];       // "6857 アドバンテスト" 形式
+  urgency: HypothesisUrgency;      // high=今週/medium=今月/low=長期
   associationSteps: AssociationStep[];
   invalidationConditions: string[];
   status: HypothesisStatus;
