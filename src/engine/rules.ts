@@ -6,6 +6,7 @@ export type AssociationTemplate = {
   keywords: string[];
   categories: EventCategory[];
   themes: string[];
+  candidateStocks: string[];
   steps: { label: string; reason: string }[];
   invalidationConditions: string[];
 };
@@ -17,6 +18,7 @@ export const ASSOCIATION_RULES: AssociationTemplate[] = [
     keywords: ['中東', '紛争', '戦争', '地政学', 'イスラエル', 'イラン', 'サウジ', 'ロシア', '軍事'],
     categories: ['geopolitics'],
     themes: ['原油', '防衛', 'ゲーム', '旅行警戒', '商社'],
+    candidateStocks: ['1605 INPEX', '5020 ENEOSホールディングス', '7011 三菱重工業', '7012 川崎重工業', '9101 日本航空（警戒）', '7832 バンダイナムコ', '9684 スクウェア・エニックス'],
     steps: [
       { label: '中東情勢悪化', reason: '地政学リスクの高まり' },
       { label: '原油供給不安', reason: '中東は主要産油地域' },
@@ -32,6 +34,7 @@ export const ASSOCIATION_RULES: AssociationTemplate[] = [
     keywords: ['原油', '石油', 'WTI', 'OPEC', 'エネルギー', '油価', 'ブレント'],
     categories: ['commodity'],
     themes: ['石油', '商社', '防衛', '空運警戒'],
+    candidateStocks: ['1605 INPEX', '5020 ENEOS', '8031 三井物産', '8053 住友商事', '9101 日本航空（警戒）', '9202 ANAホールディングス（警戒）'],
     steps: [
       { label: '原油急騰', reason: '供給制約・地政学リスク' },
       { label: 'エネルギーコスト上昇', reason: '燃料費が全産業に波及' },
@@ -47,6 +50,7 @@ export const ASSOCIATION_RULES: AssociationTemplate[] = [
     keywords: ['雇用統計', '雇用', 'NFP', '失業率', '賃金', '非農業', 'ペイロール'],
     categories: ['macro'],
     themes: ['AI・半導体警戒', '小売', '銀行', 'REIT警戒'],
+    candidateStocks: ['8309 三井住友トラスト', '8316 三井住友フィナンシャル', '8411 みずほFG', '3382 セブン＆アイ', '2651 ローソン', '8267 イオン'],
     steps: [
       { label: '米雇用統計が予想を上回る', reason: '雇用市場の底堅さを確認' },
       { label: 'AI代替ストーリーが揺らぐ', reason: '人が増えていてもAI代替はまだ先' },
@@ -62,6 +66,7 @@ export const ASSOCIATION_RULES: AssociationTemplate[] = [
     keywords: ['SOX', '半導体', 'NVIDIA', 'エヌビディア', 'AMD', 'フィラデルフィア', 'エヌビ'],
     categories: ['semiconductor'],
     themes: ['日本半導体警戒', '小売', '内需'],
+    candidateStocks: ['8035 東京エレクトロン（警戒）', '6857 アドバンテスト（警戒）', '6146 ディスコ（警戒）', '7974 任天堂', '3382 セブン＆アイ', '8267 イオン'],
     steps: [
       { label: 'SOX（フィラデルフィア半導体指数）が急落', reason: 'AI需要鈍化・在庫調整懸念' },
       { label: '半導体セクター全面安', reason: 'グローバルに売りが波及' },
@@ -77,6 +82,7 @@ export const ASSOCIATION_RULES: AssociationTemplate[] = [
     keywords: ['円安', 'ドル円', '為替', '円相場', 'ドル高', '円下落'],
     categories: ['currency'],
     themes: ['輸出', 'インバウンド', '輸入コスト警戒'],
+    candidateStocks: ['7203 トヨタ自動車', '7267 ホンダ', '6758 ソニーG', '9984 ソフトバンクG', '9603 HISホールディングス', '9726 KNT-CTホールディングス'],
     steps: [
       { label: '円安が進行', reason: '日米金利差の拡大' },
       { label: '輸出企業の採算が改善', reason: '円建て売上が増加' },
@@ -92,6 +98,7 @@ export const ASSOCIATION_RULES: AssociationTemplate[] = [
     keywords: ['円高', '日銀', '利上げ', '金融正常化', '政策金利', '利上げ示唆', '円高進行'],
     categories: ['currency', 'macro'],
     themes: ['輸出警戒', '小売', '銀行'],
+    candidateStocks: ['8306 三菱UFJ FG', '8316 三井住友FG', '8411 みずほFG', '7182 ゆうちょ銀行', '7203 トヨタ（警戒）', '6758 ソニーG（警戒）'],
     steps: [
       { label: '円高が進行（または日銀利上げ示唆）', reason: '日米金利差の縮小観測' },
       { label: '輸出企業の採算が悪化', reason: '円建て売上が減少' },
@@ -107,6 +114,7 @@ export const ASSOCIATION_RULES: AssociationTemplate[] = [
     keywords: ['CPI', 'インフレ', '物価', 'PCE', 'インフレ率', '消費者物価'],
     categories: ['macro'],
     themes: ['金利警戒', '金融株', '高PER警戒'],
+    candidateStocks: ['8306 三菱UFJ FG', '8316 三井住友FG', '8411 みずほFG', '7182 ゆうちょ銀行', '8035 東京エレクトロン（警戒）', '6857 アドバンテスト（警戒）'],
     steps: [
       { label: '米CPIが市場予想を上回る', reason: 'インフレ粘着性の確認' },
       { label: '利上げ継続・長期高止まり観測が強まる', reason: 'FRBの政策転換が遠のく' },
@@ -115,5 +123,133 @@ export const ASSOCIATION_RULES: AssociationTemplate[] = [
       { label: '日本のバリュー・金融株に注目', reason: '金利上昇環境でバリュー選好' },
     ],
     invalidationConditions: ['CPIが予想内に収まる', '景気後退懸念が優先される', '日銀の緩和継続'],
+  },
+  {
+    id: 'fomc-rate-cut',
+    label: 'FOMC利下げ・ハト派転換',
+    keywords: ['FOMC', '利下げ', 'FRB', 'パウエル', '金融緩和', 'ハト派', 'ピボット'],
+    categories: ['macro'],
+    themes: ['グロース', 'REIT', '新興国', '成長株'],
+    candidateStocks: ['6857 アドバンテスト', '8035 東京エレクトロン', '3659 ネクソン', '9984 ソフトバンクG', '8952 ジャパンリアルエステイト（REIT）'],
+    steps: [
+      { label: 'FRBが利下げ示唆・実施', reason: 'インフレ鈍化・景気減速対応' },
+      { label: '長期金利が低下', reason: '債券買い・利回り低下' },
+      { label: 'グロース株・高PERの割引率が低下', reason: '将来キャッシュフローの現在価値が上昇' },
+      { label: 'ナスダック・SOX上昇が日本株に波及', reason: 'グローバルリスクオン' },
+      { label: '日本の成長株・半導体が物色される', reason: '米グロース連動・円高リスクが残る点に注意' },
+    ],
+    invalidationConditions: ['インフレ再加速でタカ派回帰', '景気後退懸念が強まり企業業績悪化', '円高進行で輸出株売り'],
+  },
+  {
+    id: 'boj-policy-meeting',
+    label: '日銀政策決定会合（タカ派）',
+    keywords: ['日銀', '政策決定', '金融政策', '植田', '総裁', '国債買い入れ', 'YCC', '追加利上げ'],
+    categories: ['macro', 'currency'],
+    themes: ['銀行', '保険', '円高警戒（輸出）', 'REIT警戒'],
+    candidateStocks: ['8306 三菱UFJ FG', '8316 三井住友FG', '8411 みずほFG', '8601 大和証券G', '8725 MS&ADインシュアランス', '7203 トヨタ（警戒）'],
+    steps: [
+      { label: '日銀が追加利上げ・YCC修正を決定', reason: '物価目標達成の見通し強まる' },
+      { label: '国内長期金利が上昇', reason: '債券売り・利回り上昇' },
+      { label: '円高が進行', reason: '日米金利差縮小' },
+      { label: '銀行・保険株が利ザヤ改善期待で買われる', reason: '金利上昇は運用収益に追い風' },
+      { label: '輸出株・REITは売り圧力を受ける', reason: '円高と金利上昇が業績・バリュエーションに逆風' },
+    ],
+    invalidationConditions: ['日銀が据え置き・ハト派発言', '円高で輸出株全面安', 'REIT暴落でリスクオフ波及'],
+  },
+  {
+    id: 'inbound-surge',
+    label: 'インバウンド需要急増',
+    keywords: ['インバウンド', '訪日', '外国人', '観光', '旅行者', '爆買い', '観光客'],
+    categories: ['consumer'],
+    themes: ['観光', 'ホテル', '小売', '百貨店', '交通'],
+    candidateStocks: ['9602 東宝', '9726 KNT-CTホールディングス', '2726 パルグループ', '3099 三越伊勢丹HD', '8252 丸井グループ', '9006 京浜急行', '3197 すかいらーくHD'],
+    steps: [
+      { label: 'インバウンド訪日客数が急増', reason: '円安・観光需要の回復' },
+      { label: '百貨店・免税店の売上が急増', reason: '高単価外国人消費の集中' },
+      { label: 'ホテル・旅館の稼働率・客室単価が上昇', reason: '宿泊需要の逼迫' },
+      { label: '交通インフラ（鉄道・バス）の利用増', reason: '移動需要が拡大' },
+      { label: 'テーマパーク・エンタメ施設も恩恵', reason: '観光地での消費全体が拡大' },
+    ],
+    invalidationConditions: ['円高で訪日コスト上昇', '安全問題・感染症での渡航自粛', '地政学リスクで外国人が敬遠'],
+  },
+  {
+    id: 'china-economy-weak',
+    label: '中国経済指標悪化',
+    keywords: ['中国', '中国経済', '不動産', 'PMI', '輸出', '人民元', '景気後退', '中国需要'],
+    categories: ['macro', 'geopolitics'],
+    themes: ['中国関連警戒', '機械', '素材', 'インバウンド警戒'],
+    candidateStocks: ['6301 コマツ（警戒）', '6302 住友重機械（警戒）', '4005 住友化学（警戒）', '8001 伊藤忠商事', '8053 住友商事', '3099 三越伊勢丹HD（インバウンド警戒）'],
+    steps: [
+      { label: '中国の景気指標が大幅悪化', reason: '不動産不況・内需減速' },
+      { label: '中国向け輸出依存度の高い日本企業が売られる', reason: '需要減・価格下落リスク' },
+      { label: '建設機械・化学・素材株に売り', reason: '中国インフラ・工業需要の低下' },
+      { label: '訪日中国人客の減少でインバウンド業種も下押し', reason: '中国人比率の高い観光消費が落ちる' },
+      { label: '中国リスクを意識しない内需株・サービス業が相対優位', reason: '国内需要への選別が進む' },
+    ],
+    invalidationConditions: ['中国が大規模財政出動', '人民元安で輸出競争力回復', '中国PMIが反転'],
+  },
+  {
+    id: 'defense-budget-hike',
+    label: '防衛費増額・安保政策強化',
+    keywords: ['防衛費', '防衛', '安保', '軍備', 'NATO', '防衛装備', '防衛予算', '防衛省'],
+    categories: ['geopolitics'],
+    themes: ['防衛・安保', '造船', '航空宇宙', 'サイバー'],
+    candidateStocks: ['7011 三菱重工業', '7012 川崎重工業', '7013 IHI', '5631 日本製鋼所', '7762 シチズン時計', '6501 日立製作所（防衛電子）'],
+    steps: [
+      { label: '防衛費の大幅増額・安保政策強化が決定', reason: 'GDPの2%目標・地政学リスク対応' },
+      { label: '防衛関連企業の受注増が見込まれる', reason: '艦艇・航空機・ミサイル調達増加' },
+      { label: '三菱重工・川崎重工・IHI等が物色される', reason: '防衛装備の国内主要メーカー' },
+      { label: '防衛電子・通信・サイバー関連も恩恵', reason: 'C4ISR強化・宇宙防衛に予算投下' },
+      { label: '造船株も注目される', reason: '海自艦艇の新造・改修需要増' },
+    ],
+    invalidationConditions: ['財政悪化・増税懸念での売り', '予算が他省庁に流れる', '国際情勢の劇的改善'],
+  },
+  {
+    id: 'yen-carry-unwind',
+    label: '円キャリー巻き戻し',
+    keywords: ['キャリートレード', '円キャリー', 'ショートカバー', '円急騰', '投機筋', '円ショート'],
+    categories: ['currency', 'macro'],
+    themes: ['急速な円高', '輸出警戒', '外需警戒', '全面売り'],
+    candidateStocks: ['7203 トヨタ（警戒）', '6758 ソニーG（警戒）', '6954 ファナック（警戒）', '8035 東京エレクトロン（警戒）', '2503 キリンHD（相対優位）', '2802 味の素（相対優位）'],
+    steps: [
+      { label: '円キャリートレードの急激な巻き戻しが発生', reason: 'VIX急上昇・リスクオフで一斉撤退' },
+      { label: '円が短期間で急騰', reason: '円売りポジションの強制決済' },
+      { label: '日経平均が急落（輸出株中心）', reason: '円高が業績に逆風・外国人売り' },
+      { label: '輸出依存度の高い製造業株が特に打撃', reason: '為替感応度の高さ' },
+      { label: '内需・食品・ヘルスケアが相対優位になる局面も', reason: '最終的にはセクターローテーション' },
+    ],
+    invalidationConditions: ['円高が一時的で反転', '日銀が介入・姿勢を変える', '米国経済指標が改善してリスクオン回帰'],
+  },
+  {
+    id: 'earnings-surprise-up',
+    label: '好決算サプライズ（業績上方修正）',
+    keywords: ['決算', '業績', '上方修正', '増益', '経常利益', '純利益', 'サプライズ', 'EPS'],
+    categories: ['other'],
+    themes: ['好決算銘柄', 'セクター全体の見直し'],
+    candidateStocks: [],
+    steps: [
+      { label: '主要企業が市場予想を大きく上回る決算を発表', reason: '円安効果・コスト削減・需要回復' },
+      { label: '当該銘柄株価が急騰', reason: '短期的に好材料を織り込む動き' },
+      { label: '同セクター・関連銘柄も連れ高', reason: '業界環境改善の連想が働く' },
+      { label: 'アナリストが業績予想を上方修正', reason: '年間EPS・目標株価の引き上げ' },
+      { label: '機関投資家のポジション調整・新規参入が続く', reason: '好業績が確認されて資金が流入' },
+    ],
+    invalidationConditions: ['一過性の利益・来期下方修正', '同業他社の業績悪化', 'セクター全体への逆風継続'],
+  },
+  {
+    id: 'ai-demand-surge',
+    label: 'AI需要急拡大・データセンター投資増',
+    keywords: ['AI', '人工知能', 'データセンター', 'GPU', 'HBM', 'NVIDIA', 'クラウド', '生成AI'],
+    categories: ['semiconductor'],
+    themes: ['半導体', 'データセンター', '電力', '冷却'],
+    candidateStocks: ['8035 東京エレクトロン', '6857 アドバンテスト', '6146 ディスコ', '6920 レーザーテック', '9432 NTT（DC）', '6501 日立製作所（AI×IT）'],
+    steps: [
+      { label: '大手テック企業のAI投資・データセンター拡張が加速', reason: 'GPU・HBMの需要が急拡大' },
+      { label: '半導体製造装置・検査装置の受注が増加', reason: 'AI半導体の生産拡大に伴う設備投資' },
+      { label: '東京エレクトロン・アドバンテスト等が物色される', reason: 'HBM・先端ロジック向け装置の主要供給元' },
+      { label: 'データセンター向け電力・冷却設備も恩恵', reason: '消費電力の急増でインフラ投資が必要' },
+      { label: 'NTT・電力株など国内インフラ系にも波及', reason: 'DC立地先としての日本の存在感が高まる' },
+    ],
+    invalidationConditions: ['AI投資バブル崩壊・設備過剰', '米中輸出規制の強化', 'AI需要の成長鈍化・代替技術の台頭'],
   },
 ];

@@ -22,6 +22,7 @@ export const detectTemplates = (event: MarketEvent): AssociationTemplate[] => {
 export const applyTemplate = (template: AssociationTemplate): {
   steps: AssociationStep[];
   themes: string[];
+  candidateStocks: string[];
   invalidationConditions: string[];
 } => ({
   steps: template.steps.map((s, i) => ({
@@ -30,6 +31,7 @@ export const applyTemplate = (template: AssociationTemplate): {
     reason: s.reason,
   })),
   themes: [...template.themes],
+  candidateStocks: [...template.candidateStocks],
   invalidationConditions: [...template.invalidationConditions],
 });
 

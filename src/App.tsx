@@ -10,7 +10,7 @@ import { runBacktest, summarizeBacktest, type BacktestSummary } from './services
 import { parsePriceCsv, parseEventCsv, PRICE_CSV_SAMPLE, EVENT_CSV_SAMPLE } from './services/csvParser';
 import { exportStateAsJson, importStateFromJson } from './infrastructure/storage';
 import { initialState } from './data/sampleData';
-import type { AppState, MarketEvent, Hypothesis, HypothesisStatus, BacktestResult, VerificationLog } from './domain/types';
+import type { AppState, MarketEvent, Hypothesis, HypothesisStatus, HypothesisUrgency, BacktestResult, VerificationLog } from './domain/types';
 
 type View = 'dashboard' | 'event-input' | 'association-tree' | 'hypothesis-detail' | 'backtest' | 'settings';
 
@@ -224,7 +224,9 @@ function DashboardView({ state, onLoadSample, onNavigate }: DashboardProps) {
 
 // ─── Event Input ─────────────────────────────────────────────────────────────
 
-function EventInputView({ state, onAdd }: { state: AppState; onAdd: (e: MarketEvent) => void }) {
+function EventInputView({ state, onAdd, onDelete }: { state: AppState; onAdd: (e: MarketEvent) => void; onDelete: (id: string) => void }) {
+  const [confirmId, setConfirmId] = useState<string | null>(null);
+
   return (
     <>
       <header className="view-header">
@@ -239,10 +241,18 @@ function EventInputView({ state, onAdd }: { state: AppState; onAdd: (e: MarketEv
         <div className="stack">
           {state.events.length === 0 && <p className="empty-msg">まだイベントがありません</p>}
           {[...state.events].reverse().map(ev => (
-            <div className="list-item" key={ev.id}>
+            <div className="list-item" key={ev.id} style={{ position: 'relative' }}>
               <div className="list-item-meta">
                 <span className={`badge badge-${ev.category}`}>{CATEGORY_LABELS[ev.category] ?? ev.category}</span>
                 <span className="date-label">{ev.occurredAt}</span>
+                {confirmId === ev.id ? (
+                  <span style={{ display: 'flex', gap: 6, marginLeft: 'auto' }}>
+                    <button className="btn btn-ghost" style={{ fontSize: 11, padding: '2px 8px' }} onClick={() => setConfirmId(null)}>キャンセル</button>
+                    <button className="btn" style={{ fontSize: 11, padding: '2px 8px', background: '#dc2626', color: '#fff', border: 'none' }} onClick={() => { onDelete(ev.id); setConfirmId(null); }}>削除確定</button>
+                  </span>
+                ) : (
+                  <button className="btn btn-ghost" style={{ fontSize: 11, padding: '2px 8px', marginLeft: 'auto', color: 'var(--text-3)' }} onClick={() => setConfirmId(ev.id)}>削除</button>
+                )}
               </div>
               <h4>{ev.title}</h4>
               <p>{ev.summary}</p>
@@ -256,21 +266,47 @@ function EventInputView({ state, onAdd }: { state: AppState; onAdd: (e: MarketEv
 
 // ─── Association Tree ─────────────────────────────────────────────────────────
 
+type FilterStatus = HypothesisStatus | 'all';
+type FilterUrgency = HypothesisUrgency | 'all';
+
+const FILTER_STATUS_OPTS: { value: FilterStatus; label: string }[] = [
+  { value: 'all', label: '全て' },
+  { value: 'needs_test', label: '🧪 要検証' },
+  { value: 'adopted', label: '✓ 採用' },
+  { value: 'watching', label: '👁 様子見' },
+  { value: 'rejected', label: '✕ 棄却' },
+];
+
+const FILTER_URGENCY_OPTS: { value: FilterUrgency; label: string }[] = [
+  { value: 'all', label: '全期間' },
+  { value: 'high', label: '🔴 今週中' },
+  { value: 'medium', label: '🟡 今月中' },
+  { value: 'low', label: '🔵 長期' },
+];
+
 type TreeProps = {
   state: AppState;
   onAdd: (h: Hypothesis) => void;
   onStatusChange: (id: string, status: HypothesisStatus) => void;
+  onDelete: (id: string) => void;
   canExecuteAi: boolean;
   onAiIncrement: () => void;
   onAiApply: (id: string, steps: { label: string; reason: string }[], conditions: string[]) => void;
   onAddLog: (id: string, log: Omit<VerificationLog, 'id'>) => void;
 };
 
-function AssociationTreeView({ state, onAdd, onStatusChange, canExecuteAi, onAiIncrement, onAiApply, onAddLog }: TreeProps) {
+function AssociationTreeView({ state, onAdd, onStatusChange, onDelete, canExecuteAi, onAiIncrement, onAiApply, onAddLog }: TreeProps) {
   const [showForm, setShowForm] = useState(false);
   const [showTree, setShowTree] = useState(false);
+  const [filterStatus, setFilterStatus] = useState<FilterStatus>('all');
+  const [filterUrgency, setFilterUrgency] = useState<FilterUrgency>('all');
 
   const handleAdd = (h: Hypothesis) => { onAdd(h); setShowForm(false); };
+
+  const filtered = [...state.hypotheses]
+    .reverse()
+    .filter(h => filterStatus === 'all' || h.status === filterStatus)
+    .filter(h => filterUrgency === 'all' || h.urgency === filterUrgency);
 
   return (
     <>
@@ -288,16 +324,50 @@ function AssociationTreeView({ state, onAdd, onStatusChange, canExecuteAi, onAiI
       </div>
       {showForm && <HypothesisForm events={state.events} onAdd={handleAdd} />}
       {showTree && <EventTree events={state.events} hypotheses={state.hypotheses} />}
+
+      <div className="filter-bar">
+        <div className="filter-group">
+          <span className="eyebrow">ステータス</span>
+          <div className="filter-chips">
+            {FILTER_STATUS_OPTS.map(o => (
+              <button
+                key={o.value}
+                className={`filter-chip${filterStatus === o.value ? ' active' : ''}`}
+                onClick={() => setFilterStatus(o.value)}
+              >{o.label}</button>
+            ))}
+          </div>
+        </div>
+        <div className="filter-group">
+          <span className="eyebrow">緊急度</span>
+          <div className="filter-chips">
+            {FILTER_URGENCY_OPTS.map(o => (
+              <button
+                key={o.value}
+                className={`filter-chip${filterUrgency === o.value ? ' active' : ''}`}
+                onClick={() => setFilterUrgency(o.value)}
+              >{o.label}</button>
+            ))}
+          </div>
+        </div>
+        <p className="filter-count">{filtered.length} / {state.hypotheses.length} 件</p>
+      </div>
+
       <div className="hypothesis-list">
-        {state.hypotheses.length === 0 && (
-          <p className="empty-msg">仮説がありません。「仮説を追加」から登録してください。</p>
+        {filtered.length === 0 && (
+          <p className="empty-msg">
+            {state.hypotheses.length === 0
+              ? '仮説がありません。「仮説を追加」から登録してください。'
+              : 'フィルター条件に一致する仮説がありません。'}
+          </p>
         )}
-        {[...state.hypotheses].reverse().map(h => (
+        {filtered.map(h => (
           <HypothesisCard
             key={h.id}
             hypothesis={h}
             events={state.events}
             onStatusChange={onStatusChange}
+            onDelete={onDelete}
             canExecuteAi={canExecuteAi}
             onAiIncrement={onAiIncrement}
             onAiApply={onAiApply}
@@ -314,13 +384,14 @@ function AssociationTreeView({ state, onAdd, onStatusChange, canExecuteAi, onAiI
 type DetailProps = {
   state: AppState;
   onStatusChange: (id: string, status: HypothesisStatus) => void;
+  onDelete: (id: string) => void;
   canExecuteAi: boolean;
   onAiIncrement: () => void;
   onAiApply: (id: string, steps: { label: string; reason: string }[], conditions: string[]) => void;
   onAddLog: (id: string, log: Omit<VerificationLog, 'id'>) => void;
 };
 
-function HypothesisDetailView({ state, onStatusChange, canExecuteAi, onAiIncrement, onAiApply, onAddLog }: DetailProps) {
+function HypothesisDetailView({ state, onStatusChange, onDelete, canExecuteAi, onAiIncrement, onAiApply, onAddLog }: DetailProps) {
   const [selectedId, setSelectedId] = useState(state.hypotheses[0]?.id ?? '');
   const hypothesis = state.hypotheses.find(h => h.id === selectedId);
 
@@ -344,6 +415,7 @@ function HypothesisDetailView({ state, onStatusChange, canExecuteAi, onAiIncreme
           hypothesis={hypothesis}
           events={state.events}
           onStatusChange={onStatusChange}
+          onDelete={(id) => { onDelete(id); setSelectedId(state.hypotheses.find(h => h.id !== id)?.id ?? ''); }}
           canExecuteAi={canExecuteAi}
           onAiIncrement={onAiIncrement}
           onAiApply={onAiApply}
@@ -612,7 +684,7 @@ function SettingsView({ settings, usage, onUpdate, onExport, onImport }: Setting
 
 export default function App() {
   const [view, setView] = useState<View>('dashboard');
-  const { state, addEvent, addHypothesis, updateHypothesisStatus, appendAiResult, addVerificationLog, replaceState } = useStore();
+  const { state, addEvent, addHypothesis, updateHypothesisStatus, appendAiResult, addVerificationLog, deleteEvent, deleteHypothesis, replaceState } = useStore();
   const { settings, usage, updateSettings, canExecute, incrementUsage } = useAiSettings();
   const { toasts, pushToast, dismissToast } = useToast();
 
@@ -654,6 +726,16 @@ export default function App() {
       (msg) => pushToast(`インポートエラー: ${msg}`),
     );
   }, [replaceState, pushToast]);
+
+  const handleDeleteEvent = useCallback((id: string) => {
+    deleteEvent(id);
+    pushToast('イベントを削除しました');
+  }, [deleteEvent, pushToast]);
+
+  const handleDeleteHypothesis = useCallback((id: string) => {
+    deleteHypothesis(id);
+    pushToast('仮説を削除しました');
+  }, [deleteHypothesis, pushToast]);
 
   const aiProps = {
     canExecuteAi: canExecute(),
@@ -699,12 +781,13 @@ export default function App() {
         {view === 'dashboard' && (
           <DashboardView state={state} onLoadSample={handleLoadSample} onNavigate={setView} />
         )}
-        {view === 'event-input' && <EventInputView state={state} onAdd={addEvent} />}
+        {view === 'event-input' && <EventInputView state={state} onAdd={addEvent} onDelete={handleDeleteEvent} />}
         {view === 'association-tree' && (
           <AssociationTreeView
             state={state}
             onAdd={addHypothesis}
             onStatusChange={handleStatusChange}
+            onDelete={handleDeleteHypothesis}
             {...aiProps}
           />
         )}
@@ -712,6 +795,7 @@ export default function App() {
           <HypothesisDetailView
             state={state}
             onStatusChange={handleStatusChange}
+            onDelete={handleDeleteHypothesis}
             {...aiProps}
           />
         )}
