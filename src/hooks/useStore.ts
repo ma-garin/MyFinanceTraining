@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import type {
   AppState, MarketEvent, Hypothesis, HypothesisStatus,
-  AssociationStep, VerificationLog,
+  AssociationStep, VerificationLog, ForecastOutcome,
 } from '../domain/types';
 import { loadState, saveState } from '../infrastructure/storage';
 import { initialState } from '../data/sampleData';
@@ -70,6 +70,33 @@ export const useStore = () => {
     }));
   }, []);
 
+  // 較正のための結果確定。status も hit→adopted / miss→rejected に同期する
+  const resolveHypothesis = useCallback((id: string, outcome: ForecastOutcome, note: string) => {
+    setState(prev => ({
+      ...prev,
+      hypotheses: prev.hypotheses.map(h =>
+        h.id === id
+          ? {
+              ...h,
+              resolution: { outcome, resolvedAt: new Date().toISOString().slice(0, 10), note },
+              status: outcome === 'hit' ? 'adopted' : 'rejected',
+            }
+          : h
+      ),
+    }));
+  }, []);
+
+  const clearResolution = useCallback((id: string) => {
+    setState(prev => ({
+      ...prev,
+      hypotheses: prev.hypotheses.map(h => {
+        if (h.id !== id) return h;
+        const { resolution: _omit, ...rest } = h;
+        return rest;
+      }),
+    }));
+  }, []);
+
   const deleteEvent = useCallback((id: string) => {
     setState(prev => ({
       ...prev,
@@ -96,6 +123,8 @@ export const useStore = () => {
     updateHypothesisStatus,
     appendAiResult,
     addVerificationLog,
+    resolveHypothesis,
+    clearResolution,
     deleteEvent,
     deleteHypothesis,
     replaceState,

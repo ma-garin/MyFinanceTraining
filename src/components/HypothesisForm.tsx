@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
-import type { Hypothesis, Direction, HypothesisUrgency, MarketEvent } from '../domain/types';
+import type { Hypothesis, Direction, HypothesisUrgency, MarketEvent, AssociationStep } from '../domain/types';
 import { detectTemplates, applyTemplate, type AssociationTemplate } from '../engine/associationEngine';
+import { chainProbability } from '../engine/calibrationEngine';
 
 const DIRECTIONS: { value: Direction; label: string }[] = [
   { value: 'up', label: '↑ 上昇' },
@@ -15,16 +16,17 @@ const URGENCIES: { value: HypothesisUrgency; label: string }[] = [
   { value: 'low', label: '🔵 長期観察' },
 ];
 
-type StepDraft = { label: string; reason: string };
+type StepDraft = { label: string; reason: string; probability: string };
 
 const emptySteps = (): StepDraft[] =>
-  Array.from({ length: 5 }, () => ({ label: '', reason: '' }));
+  Array.from({ length: 5 }, () => ({ label: '', reason: '', probability: '' }));
 
 const emptyForm = () => ({
   title: '',
   eventId: '',
   expectedDirection: 'up' as Direction,
   urgency: 'medium' as HypothesisUrgency,
+  confidence: '60',
   targetThemes: '',
   candidateStocks: '',
   invalidationConditions: '',
@@ -50,9 +52,21 @@ export function HypothesisForm({ events, onAdd }: Props) {
     setSteps(prev => prev.map((s, i) => i === idx ? { ...s, [field]: value } : s));
   };
 
+  // 入力中の連想チェーンの積確率をライブ計算（確信度との乖離チェック用）
+  const liveChain = useMemo(() => chainProbability(
+    steps
+      .filter(s => s.label.trim() !== '')
+      .map((s, i) => ({
+        depth: (i + 1) as 1 | 2 | 3 | 4 | 5,
+        label: s.label,
+        reason: s.reason,
+        probability: s.probability.trim() === '' ? undefined : Number(s.probability),
+      })),
+  ), [steps]);
+
   const handleApplyTemplate = (template: AssociationTemplate) => {
     const { steps: tSteps, themes, candidateStocks, invalidationConditions } = applyTemplate(template);
-    setSteps(tSteps.map(s => ({ label: s.label, reason: s.reason })));
+    setSteps(tSteps.map(s => ({ label: s.label, reason: s.reason, probability: '' })));
     setForm(prev => ({
       ...prev,
       targetThemes: themes.join(', '),
@@ -74,9 +88,20 @@ export function HypothesisForm({ events, onAdd }: Props) {
       return;
     }
 
-    const filledSteps = steps
-      .map((s, i) => ({ depth: (i + 1) as 1 | 2 | 3 | 4 | 5, label: s.label.trim(), reason: s.reason.trim() }))
+    const filledSteps: AssociationStep[] = steps
+      .map((s, i) => {
+        const prob = s.probability.trim() === '' ? undefined : Number(s.probability);
+        const step: AssociationStep = {
+          depth: (i + 1) as 1 | 2 | 3 | 4 | 5,
+          label: s.label.trim(),
+          reason: s.reason.trim(),
+        };
+        if (prob !== undefined && !Number.isNaN(prob)) step.probability = Math.max(0, Math.min(100, prob));
+        return step;
+      })
       .filter(s => s.label !== '');
+
+    const confidenceNum = form.confidence.trim() === '' ? undefined : Math.max(0, Math.min(100, Number(form.confidence)));
 
     const themes = form.targetThemes
       .split(/[,、]/)
@@ -99,6 +124,7 @@ export function HypothesisForm({ events, onAdd }: Props) {
       eventId: form.eventId,
       expectedDirection: form.expectedDirection,
       urgency: form.urgency,
+      confidence: confidenceNum !== undefined && !Number.isNaN(confidenceNum) ? confidenceNum : undefined,
       targetThemes: themes,
       candidateStocks: stocks,
       associationSteps: filledSteps,
@@ -173,6 +199,24 @@ export function HypothesisForm({ events, onAdd }: Props) {
         </div>
       </div>
 
+      <div className="form-group confidence-group">
+        <label htmlFor="hyp-confidence">
+          確信度（この仮説が当たると考える主観確率）— <strong>{form.confidence || 0}%</strong>
+        </label>
+        <input
+          id="hyp-confidence"
+          type="range"
+          min={0}
+          max={100}
+          step={5}
+          value={form.confidence || '0'}
+          onChange={e => setForm(prev => ({ ...prev, confidence: e.target.value }))}
+        />
+        <p className="field-hint">
+          結果確定後にBrierスコアで「予測の当たり方」を測定します。50%＝コイン投げ。正直な数値を。
+        </p>
+      </div>
+
       {templates.length > 0 && (
         <div className="template-suggestions">
           <p className="eyebrow">ルールベース提案 — クリックで自動入力</p>
@@ -192,7 +236,7 @@ export function HypothesisForm({ events, onAdd }: Props) {
       )}
 
       <fieldset className="step-fieldset">
-        <legend>連想ステップ（1〜5段階）</legend>
+        <legend>連想ステップ（1〜5段階）／各リンクの条件付き確率（％・任意）</legend>
         {steps.map((step, idx) => (
           <div key={idx} className="step-row">
             <span className="step-num">{idx + 1}</span>
@@ -208,8 +252,28 @@ export function HypothesisForm({ events, onAdd }: Props) {
               value={step.reason}
               onChange={e => updateStep(idx, 'reason', e.target.value)}
             />
+            <input
+              className="step-prob-input"
+              type="number"
+              min={0}
+              max={100}
+              placeholder="％"
+              value={step.probability}
+              onChange={e => updateStep(idx, 'probability', e.target.value)}
+            />
           </div>
         ))}
+        {liveChain.product !== null && (
+          <div className="chain-preview">
+            <span>論理積確率（各リンクの積）: <strong>{(liveChain.product * 100).toFixed(1)}%</strong></span>
+            <span className="chain-meta">
+              {liveChain.quantifiedLinks}/{liveChain.totalLinks} リンクに確率を設定
+              {Number(form.confidence) > 0 && Math.abs(Number(form.confidence) / 100 - liveChain.product) >= 0.2 && (
+                <span className="chain-warn">　⚠ 確信度と{(Math.abs(Number(form.confidence) - liveChain.product * 100)).toFixed(0)}pt乖離</span>
+              )}
+            </span>
+          </div>
+        )}
       </fieldset>
 
       <div className="form-group">

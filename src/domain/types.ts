@@ -25,6 +25,7 @@ export type AssociationStep = {
   depth: 1 | 2 | 3 | 4 | 5;
   label: string;
   reason: string;
+  probability?: number;   // 0-100: 前リンクが成立した条件下でこのリンクが成立する確率
 };
 
 // ─── Verification Log ───────────────────────────────────────────────────────
@@ -49,6 +50,17 @@ export type InvalidationRule = {
   };
 };
 
+// ─── Forecast Resolution ─────────────────────────────────────────────────────
+// 較正（calibration）のための「予測 vs 結果」の最終確定記録
+
+export type ForecastOutcome = 'hit' | 'miss';
+
+export type ForecastResolution = {
+  outcome: ForecastOutcome;
+  resolvedAt: string;      // YYYY-MM-DD
+  note?: string;
+};
+
 // ─── Hypothesis ─────────────────────────────────────────────────────────────
 
 export type Hypothesis = {
@@ -59,9 +71,11 @@ export type Hypothesis = {
   targetThemes: string[];
   candidateStocks: string[];       // "6857 アドバンテスト" 形式
   urgency: HypothesisUrgency;      // high=今週/medium=今月/low=長期
+  confidence?: number;             // 0-100: 仮説が成立すると考える主観確率（予測）
   associationSteps: AssociationStep[];
   invalidationConditions: string[];
   status: HypothesisStatus;
+  resolution?: ForecastResolution; // 結果確定後の hit/miss（較正の入力）
   verificationLogs?: VerificationLog[];
   invalidationRules?: InvalidationRule[];
 };

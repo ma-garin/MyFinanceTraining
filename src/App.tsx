@@ -6,19 +6,21 @@ import { EventForm } from './components/EventForm';
 import { HypothesisForm } from './components/HypothesisForm';
 import { HypothesisCard } from './components/HypothesisCard';
 import { EventTree } from './components/EventTree';
+import { CalibrationView } from './components/CalibrationView';
 import { runBacktest, summarizeBacktest, type BacktestSummary } from './services/backtestEngine';
 import { parsePriceCsv, parseEventCsv, PRICE_CSV_SAMPLE, EVENT_CSV_SAMPLE } from './services/csvParser';
 import { exportStateAsJson, importStateFromJson } from './infrastructure/storage';
 import { initialState } from './data/sampleData';
-import type { AppState, MarketEvent, Hypothesis, HypothesisStatus, HypothesisUrgency, BacktestResult, VerificationLog } from './domain/types';
+import type { AppState, MarketEvent, Hypothesis, HypothesisStatus, HypothesisUrgency, ForecastOutcome, BacktestResult, VerificationLog } from './domain/types';
 
-type View = 'dashboard' | 'event-input' | 'association-tree' | 'hypothesis-detail' | 'backtest' | 'settings';
+type View = 'dashboard' | 'event-input' | 'association-tree' | 'hypothesis-detail' | 'calibration' | 'backtest' | 'settings';
 
 const NAV_ITEMS: { icon: string; label: string; mobileLabel: string; view: View }[] = [
   { icon: '◈', label: 'ダッシュボード', mobileLabel: 'ホーム',  view: 'dashboard' },
   { icon: '＋', label: 'イベント',        mobileLabel: '入力',   view: 'event-input' },
   { icon: '⟿', label: '連想ツリー',      mobileLabel: '仮説',   view: 'association-tree' },
   { icon: '◉', label: '仮説詳細',        mobileLabel: '詳細',   view: 'hypothesis-detail' },
+  { icon: '◎', label: '較正・実績',      mobileLabel: '較正',   view: 'calibration' },
   { icon: '↗', label: 'バックテスト',    mobileLabel: 'テスト', view: 'backtest' },
   { icon: '⚙', label: '設定',           mobileLabel: '設定',   view: 'settings' },
 ];
@@ -289,13 +291,15 @@ type TreeProps = {
   onAdd: (h: Hypothesis) => void;
   onStatusChange: (id: string, status: HypothesisStatus) => void;
   onDelete: (id: string) => void;
+  onResolve: (id: string, outcome: ForecastOutcome, note: string) => void;
+  onClearResolution: (id: string) => void;
   canExecuteAi: boolean;
   onAiIncrement: () => void;
   onAiApply: (id: string, steps: { label: string; reason: string }[], conditions: string[]) => void;
   onAddLog: (id: string, log: Omit<VerificationLog, 'id'>) => void;
 };
 
-function AssociationTreeView({ state, onAdd, onStatusChange, onDelete, canExecuteAi, onAiIncrement, onAiApply, onAddLog }: TreeProps) {
+function AssociationTreeView({ state, onAdd, onStatusChange, onDelete, onResolve, onClearResolution, canExecuteAi, onAiIncrement, onAiApply, onAddLog }: TreeProps) {
   const [showForm, setShowForm] = useState(false);
   const [showTree, setShowTree] = useState(false);
   const [filterStatus, setFilterStatus] = useState<FilterStatus>('all');
@@ -368,6 +372,8 @@ function AssociationTreeView({ state, onAdd, onStatusChange, onDelete, canExecut
             events={state.events}
             onStatusChange={onStatusChange}
             onDelete={onDelete}
+            onResolve={onResolve}
+            onClearResolution={onClearResolution}
             canExecuteAi={canExecuteAi}
             onAiIncrement={onAiIncrement}
             onAiApply={onAiApply}
@@ -385,13 +391,15 @@ type DetailProps = {
   state: AppState;
   onStatusChange: (id: string, status: HypothesisStatus) => void;
   onDelete: (id: string) => void;
+  onResolve: (id: string, outcome: ForecastOutcome, note: string) => void;
+  onClearResolution: (id: string) => void;
   canExecuteAi: boolean;
   onAiIncrement: () => void;
   onAiApply: (id: string, steps: { label: string; reason: string }[], conditions: string[]) => void;
   onAddLog: (id: string, log: Omit<VerificationLog, 'id'>) => void;
 };
 
-function HypothesisDetailView({ state, onStatusChange, onDelete, canExecuteAi, onAiIncrement, onAiApply, onAddLog }: DetailProps) {
+function HypothesisDetailView({ state, onStatusChange, onDelete, onResolve, onClearResolution, canExecuteAi, onAiIncrement, onAiApply, onAddLog }: DetailProps) {
   const [selectedId, setSelectedId] = useState(state.hypotheses[0]?.id ?? '');
   const hypothesis = state.hypotheses.find(h => h.id === selectedId);
 
@@ -416,6 +424,8 @@ function HypothesisDetailView({ state, onStatusChange, onDelete, canExecuteAi, o
           events={state.events}
           onStatusChange={onStatusChange}
           onDelete={(id) => { onDelete(id); setSelectedId(state.hypotheses.find(h => h.id !== id)?.id ?? ''); }}
+          onResolve={onResolve}
+          onClearResolution={onClearResolution}
           canExecuteAi={canExecuteAi}
           onAiIncrement={onAiIncrement}
           onAiApply={onAiApply}
@@ -684,7 +694,7 @@ function SettingsView({ settings, usage, onUpdate, onExport, onImport }: Setting
 
 export default function App() {
   const [view, setView] = useState<View>('dashboard');
-  const { state, addEvent, addHypothesis, updateHypothesisStatus, appendAiResult, addVerificationLog, deleteEvent, deleteHypothesis, replaceState } = useStore();
+  const { state, addEvent, addHypothesis, updateHypothesisStatus, appendAiResult, addVerificationLog, resolveHypothesis, clearResolution, deleteEvent, deleteHypothesis, replaceState } = useStore();
   const { settings, usage, updateSettings, canExecute, incrementUsage } = useAiSettings();
   const { toasts, pushToast, dismissToast } = useToast();
 
@@ -737,6 +747,21 @@ export default function App() {
     pushToast('仮説を削除しました');
   }, [deleteHypothesis, pushToast]);
 
+  const handleResolve = useCallback((id: string, outcome: ForecastOutcome, note: string) => {
+    resolveHypothesis(id, outcome, note);
+    pushToast(`結果を「${outcome === 'hit' ? '的中' : '外れ'}」で確定しました`);
+  }, [resolveHypothesis, pushToast]);
+
+  const handleClearResolution = useCallback((id: string) => {
+    clearResolution(id);
+    pushToast('確定を取り消しました');
+  }, [clearResolution, pushToast]);
+
+  const resolveProps = {
+    onResolve: handleResolve,
+    onClearResolution: handleClearResolution,
+  };
+
   const aiProps = {
     canExecuteAi: canExecute(),
     onAiIncrement: incrementUsage,
@@ -788,6 +813,7 @@ export default function App() {
             onAdd={addHypothesis}
             onStatusChange={handleStatusChange}
             onDelete={handleDeleteHypothesis}
+            {...resolveProps}
             {...aiProps}
           />
         )}
@@ -796,9 +822,11 @@ export default function App() {
             state={state}
             onStatusChange={handleStatusChange}
             onDelete={handleDeleteHypothesis}
+            {...resolveProps}
             {...aiProps}
           />
         )}
+        {view === 'calibration' && <CalibrationView state={state} />}
         {view === 'backtest' && <BacktestView hypotheses={state.hypotheses} />}
         {view === 'settings' && (
           <SettingsView
