@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import type { Hypothesis, HypothesisStatus, HypothesisUrgency, MarketEvent, VerificationLog, VerificationLogResult } from '../domain/types';
+import type { Hypothesis, HypothesisStatus, HypothesisUrgency, MarketEvent, VerificationLog, VerificationLogResult, ForecastOutcome } from '../domain/types';
 import { AiDeepDive } from './AiDeepDive';
+import { chainProbability } from '../engine/calibrationEngine';
 import { todayStr } from '../utils/dateUtils';
 
 const STATUS_LABELS: Record<HypothesisStatus, string> = {
@@ -51,6 +52,8 @@ type Props = {
   events: MarketEvent[];
   onStatusChange: (id: string, status: HypothesisStatus) => void;
   onDelete?: (id: string) => void;
+  onResolve?: (id: string, outcome: ForecastOutcome, note: string) => void;
+  onClearResolution?: (id: string) => void;
   canExecuteAi: boolean;
   onAiIncrement: () => void;
   onAiApply: (id: string, steps: { label: string; reason: string }[], conditions: string[]) => void;
@@ -62,6 +65,8 @@ export function HypothesisCard({
   events,
   onStatusChange,
   onDelete,
+  onResolve,
+  onClearResolution,
   canExecuteAi,
   onAiIncrement,
   onAiApply,
@@ -72,6 +77,20 @@ export function HypothesisCard({
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [logResult, setLogResult] = useState<VerificationLogResult>('pending');
   const [logNote, setLogNote] = useState('');
+  const [showResolveForm, setShowResolveForm] = useState(false);
+  const [resolveNote, setResolveNote] = useState('');
+
+  const chain = chainProbability(h.associationSteps);
+  const confidencePct = typeof h.confidence === 'number' ? h.confidence : null;
+  const chainPct = chain.product !== null ? chain.product * 100 : null;
+  const gap = confidencePct !== null && chainPct !== null ? Math.abs(confidencePct - chainPct) : null;
+
+  const handleResolve = (outcome: ForecastOutcome) => {
+    if (!onResolve) return;
+    onResolve(h.id, outcome, resolveNote.trim());
+    setResolveNote('');
+    setShowResolveForm(false);
+  };
 
   const handleAddLog = () => {
     if (!onAddLog) return;
@@ -137,12 +156,43 @@ export function HypothesisCard({
           <li key={step.depth}>
             <span>{step.depth}</span>
             <div>
-              <p className="step-label">{step.label}</p>
+              <p className="step-label">
+                {step.label}
+                {typeof step.probability === 'number' && (
+                  <span className="step-prob-badge">{step.probability}%</span>
+                )}
+              </p>
               {step.reason && <p className="step-reason">{step.reason}</p>}
             </div>
           </li>
         ))}
       </ol>
+
+      {(confidencePct !== null || chainPct !== null) && (
+        <div className="forecast-block">
+          {confidencePct !== null && (
+            <div className="forecast-metric">
+              <p className="eyebrow">確信度（予測）</p>
+              <p className="forecast-value">{confidencePct}%</p>
+            </div>
+          )}
+          {chainPct !== null && (
+            <div className="forecast-metric">
+              <p className="eyebrow">論理積確率</p>
+              <p className="forecast-value">
+                {chainPct.toFixed(1)}%
+                <span className="forecast-sub"> （{chain.quantifiedLinks}/{chain.totalLinks}リンク）</span>
+              </p>
+            </div>
+          )}
+          {gap !== null && gap >= 20 && (
+            <div className="forecast-metric forecast-gap">
+              <p className="eyebrow">乖離</p>
+              <p className="forecast-value">⚠ {gap.toFixed(0)}pt</p>
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="meta-row">
         <div>
@@ -191,6 +241,54 @@ export function HypothesisCard({
           ))}
         </div>
       </div>
+
+      {onResolve && (
+        <div className="resolve-section">
+          {h.resolution ? (
+            <div className={`resolution-banner resolution-${h.resolution.outcome}`}>
+              <div>
+                <span className="resolution-label">
+                  {h.resolution.outcome === 'hit' ? '✓ 的中で確定' : '✕ 外れで確定'}
+                </span>
+                <span className="resolution-date">{h.resolution.resolvedAt}</span>
+                {confidencePct !== null && (
+                  <span className="resolution-brier">
+                    Brier {(((h.resolution.outcome === 'hit' ? 1 : 0) - confidencePct / 100) ** 2).toFixed(3)}
+                  </span>
+                )}
+              </div>
+              {h.resolution.note && <p className="resolution-note">{h.resolution.note}</p>}
+              {onClearResolution && (
+                <button
+                  className="btn btn-ghost"
+                  style={{ fontSize: 11, padding: '2px 8px', color: 'var(--text-3)', marginTop: 6 }}
+                  onClick={() => onClearResolution(h.id)}
+                >確定を取り消す</button>
+              )}
+            </div>
+          ) : showResolveForm ? (
+            <div className="vlog-add-form">
+              <p className="eyebrow" style={{ margin: 0 }}>結果を確定（較正に反映）</p>
+              <textarea
+                rows={2}
+                placeholder="確定理由・根拠（任意）"
+                value={resolveNote}
+                onChange={e => setResolveNote(e.target.value)}
+                style={{ width: '100%', resize: 'vertical', boxSizing: 'border-box' }}
+              />
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button className="btn" style={{ flex: 1, background: '#16a34a', color: '#fff', border: 'none', fontSize: 13 }} onClick={() => handleResolve('hit')}>✓ 的中で確定</button>
+                <button className="btn" style={{ flex: 1, background: '#dc2626', color: '#fff', border: 'none', fontSize: 13 }} onClick={() => handleResolve('miss')}>✕ 外れで確定</button>
+                <button className="btn btn-ghost" style={{ fontSize: 12 }} onClick={() => setShowResolveForm(false)}>取消</button>
+              </div>
+            </div>
+          ) : (
+            <button className="btn btn-ghost" style={{ fontSize: 12, width: '100%' }} onClick={() => setShowResolveForm(true)}>
+              🎯 結果を確定する（較正に反映）
+            </button>
+          )}
+        </div>
+      )}
 
       {onAddLog && (
         <div className="vlog-section">

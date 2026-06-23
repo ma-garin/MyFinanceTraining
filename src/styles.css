@@ -632,10 +632,12 @@ a { color: inherit; text-decoration: none; }
 
 .step-row {
   display: grid;
-  grid-template-columns: 32px 1fr 1fr;
+  grid-template-columns: 32px 1fr 1fr 72px;
   gap: 10px;
   align-items: center;
 }
+
+.step-prob-input { text-align: center; }
 
 .step-num {
   display: grid;
@@ -998,7 +1000,7 @@ a { color: inherit; text-decoration: none; }
   .form-row { grid-template-columns: 1fr; }
 
   .step-row { grid-template-columns: 32px 1fr; }
-  .step-row input:last-child { grid-column: 2; }
+  .step-row input { grid-column: 2; }
 
   .view-header         { padding: 18px; border-radius: var(--radius-lg); }
   .view-header h2      { font-size: 18px; }
