@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">投資仮説OS</string>
-    <string name="title_activity_main">投資仮説OS</string>
+    <string name="app_name">読み筋</string>
+    <string name="title_activity_main">読み筋</string>
     <string name="package_name">com.magarin.myfinancetraining</string>
     <string name="custom_url_scheme">com.magarin.myfinancetraining</string>
 </resources>

@@ -277,8 +277,8 @@
 .vlog-item.vlog-pending { border-left: 3px solid #d97706; }
 
 .vlog-meta { display: flex; gap: 8px; align-items: center; flex-shrink: 0; }
-.vlog-date { font-size: 11px; color: var(--text-muted); font-weight: 600; }
-.vlog-result-label { font-size: 11px; font-weight: 800; }
+.vlog-date { font-size: 12px; color: var(--text-muted); font-weight: 600; }
+.vlog-result-label { font-size: 12px; font-weight: 800; }
 .vlog-note { color: var(--text-2); line-height: 1.5; }
 
 .vlog-add-form {
@@ -318,7 +318,7 @@
   gap: 4px;
   padding: 2px 8px;
   border-radius: 999px;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
   flex-shrink: 0;
 }

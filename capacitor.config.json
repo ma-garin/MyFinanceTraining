@@ -1,6 +1,6 @@
 {
   "appId": "com.magarin.myfinancetraining",
-  "appName": "投資仮説OS",
+  "appName": "読み筋",
   "webDir": "dist-android",
   "android": {
     "allowMixedContent": false

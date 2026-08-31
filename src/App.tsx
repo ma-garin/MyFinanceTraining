@@ -68,8 +68,8 @@ function MobileHeader({ theme, onToggle }: { theme: 'light' | 'dark'; onToggle: 
   return (
     <header className="app-header-mobile">
       <div className="mobile-brand">
-        <div className="mobile-brand-mark">FT</div>
-        <span className="mobile-brand-name">投資仮説OS</span>
+        <div className="mobile-brand-mark">読</div>
+        <span className="mobile-brand-name">読み筋</span>
       </div>
       <button className="mobile-theme-btn" onClick={onToggle} aria-label="テーマ切替">
         {theme === 'dark' ? '☀' : '🌙'}
@@ -116,9 +116,8 @@ function DashboardView({ state, onLoadSample, onNavigate }: DashboardProps) {
   return (
     <>
       <header className="view-header">
-        <p className="eyebrow">Global Event → Japan Market Reaction</p>
-        <h2>ニュースから連想ツリーを作り、日本市場の仮説へ落とす</h2>
-        <p>AIを常時使わず、ルールベースと手入力で仮説を管理します。AIは深掘り・失敗条件の洗い出しだけに限定します。</p>
+        <p className="eyebrow">ホーム</p>
+        <h2>今日の読み筋</h2>
       </header>
 
       {isEmpty ? (
@@ -168,7 +167,7 @@ function DashboardView({ state, onLoadSample, onNavigate }: DashboardProps) {
           <div className="grid two-columns">
             <article className="card">
               <div className="card-header">
-                <p className="eyebrow">Events</p>
+                <p className="eyebrow">イベント</p>
                 <h3>注目イベント</h3>
               </div>
               <div className="stack">
@@ -185,7 +184,7 @@ function DashboardView({ state, onLoadSample, onNavigate }: DashboardProps) {
 
             <article className="card">
               <div className="card-header">
-                <p className="eyebrow">Themes</p>
+                <p className="eyebrow">テーマ</p>
                 <h3>日本株テーマ</h3>
               </div>
               <div className="theme-list">
@@ -201,7 +200,7 @@ function DashboardView({ state, onLoadSample, onNavigate }: DashboardProps) {
 
           <article className="card">
             <div className="card-header">
-              <p className="eyebrow">Hypotheses</p>
+              <p className="eyebrow">仮説</p>
               <h3>仮説サマリー — {state.hypotheses.length} 件</h3>
             </div>
             <div className="stack">
@@ -231,7 +230,7 @@ function EventInputView({ state, onAdd, onDelete }: { state: AppState; onAdd: (e
   return (
     <>
       <header className="view-header">
-        <p className="eyebrow">Event Input</p>
+        <p className="eyebrow">イベント入力</p>
         <h2>ニュース・イベントを記録する</h2>
       </header>
       <EventForm onAdd={onAdd} />
@@ -312,7 +311,7 @@ function AssociationTreeView({ state, onAdd, onStatusChange, onDelete, canExecut
   return (
     <>
       <header className="view-header">
-        <p className="eyebrow">Association Tree</p>
+        <p className="eyebrow">連想ツリー</p>
         <h2>連想ツリーと投資仮説</h2>
       </header>
       <div className="toolbar">
@@ -399,7 +398,7 @@ function HypothesisDetailView({ state, onStatusChange, onDelete, canExecuteAi, o
   return (
     <>
       <header className="view-header">
-        <p className="eyebrow">Hypothesis Detail</p>
+        <p className="eyebrow">仮説詳細</p>
         <h2>仮説詳細・ステータス管理</h2>
       </header>
       <div className="form-group">
@@ -486,8 +485,8 @@ function BacktestView({ hypotheses, jq }: BacktestProps) {
   return (
     <>
       <header className="view-header">
-        <p className="eyebrow">Backtest</p>
-        <h2>CSV バックテスト</h2>
+        <p className="eyebrow">検証</p>
+        <h2>仮説の過去検証</h2>
       </header>
 
       <article className="card">
@@ -681,7 +680,7 @@ function SettingsView({ settings, usage, onUpdate, onExport, onImport, jq }: Set
   return (
     <>
       <header className="view-header">
-        <p className="eyebrow">Settings</p>
+        <p className="eyebrow">設定</p>
         <h2>設定</h2>
       </header>
 
@@ -866,10 +865,10 @@ export default function App() {
 
       <aside className="sidebar">
         <div className="brand">
-          <span className="brand-mark">FT</span>
+          <span className="brand-mark">読</span>
           <div className="brand-text">
-            <p className="eyebrow">MyFinanceTraining</p>
-            <h1>投資仮説OS</h1>
+            <p className="eyebrow">日本株の仮説ノート</p>
+            <h1>読み筋</h1>
           </div>
         </div>
         <nav className="nav-list" aria-label="Main navigation">
