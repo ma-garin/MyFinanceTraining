@@ -78,13 +78,34 @@ jobs:
 
       # 出来上がった APK の署名を実測する。「鍵を置いたつもり」が黙って無視されると、
       # 更新できない APK を配ってしまう。意図ではなく成果物を検証する。
+      #
+      # 期待値はリポジトリ変数 ANDROID_CERT_SHA256（証明書のSHA-256。公開情報なので
+      # secret ではなく variable でよい）に入れる。設定されていれば照合して落とし、
+      # 未設定なら実測値の表示だけ行う。
       - name: Verify APK signature
         if: env.ANDROID_KEYSTORE_PATH != ''
+        env:
+          EXPECTED_CERT_SHA256: ${{ vars.ANDROID_CERT_SHA256 }}
         run: |
           APKSIGNER="$ANDROID_HOME/build-tools/$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -1)/apksigner"
-          "$APKSIGNER" verify --print-certs \
+          ACTUAL=$("$APKSIGNER" verify --print-certs \
             android/app/build/outputs/apk/debug/app-debug.apk \
-            | grep 'certificate SHA-256'
+            | grep 'certificate SHA-256' | head -1 | awk '{print $NF}')
+          echo "actual: $ACTUAL"
+          if [ -z "$EXPECTED_CERT_SHA256" ]; then
+            echo "::warning::ANDROID_CERT_SHA256 が未設定のため署名の照合を行いません。上の値をこの変数に設定してください。"
+            exit 0
+          fi
+          # keytool は 4A:0D:D7 形式の大文字、apksigner は区切りなしの小文字で出す。
+          # どちらを貼られても通るよう正規化してから比べる。
+          NORM_EXPECTED=$(echo "$EXPECTED_CERT_SHA256" | tr -d ': ' | tr 'A-Z' 'a-z')
+          NORM_ACTUAL=$(echo "$ACTUAL" | tr -d ': ' | tr 'A-Z' 'a-z')
+          echo "expected: $NORM_EXPECTED"
+          if [ "$NORM_ACTUAL" != "$NORM_EXPECTED" ]; then
+            echo "::error::APK の署名が固定鍵と一致しません。この APK は配布してはいけない（上書きインストールできない）"
+            exit 1
+          fi
+          echo "署名OK: 固定鍵で署名されています"
 
       - name: Upload APK (artifact)
         uses: actions/upload-artifact@v4
