@@ -1,22 +1,26 @@
 {
   "name": "my-finance-training",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "build:android": "BUILD_TARGET=capacitor vite build --outDir dist-android && cap sync android"
   },
   "dependencies": {
     "@vitejs/plugin-react": "latest",
     "vite": "latest",
     "typescript": "latest",
     "react": "latest",
-    "react-dom": "latest"
+    "react-dom": "latest",
+    "@capacitor/android": "^8.5.0",
+    "@capacitor/core": "^8.5.0"
   },
   "devDependencies": {
     "@types/react": "latest",
-    "@types/react-dom": "latest"
+    "@types/react-dom": "latest",
+    "@capacitor/cli": "^8.5.0"
   }
 }

@@ -7,10 +7,11 @@ import { HypothesisForm } from './components/HypothesisForm';
 import { HypothesisCard } from './components/HypothesisCard';
 import { EventTree } from './components/EventTree';
 import { runBacktest, summarizeBacktest, type BacktestSummary } from './services/backtestEngine';
+import { useJquants } from './hooks/useJquants';
 import { parsePriceCsv, parseEventCsv, PRICE_CSV_SAMPLE, EVENT_CSV_SAMPLE } from './services/csvParser';
 import { exportStateAsJson, importStateFromJson } from './infrastructure/storage';
 import { initialState } from './data/sampleData';
-import type { AppState, MarketEvent, Hypothesis, HypothesisStatus, HypothesisUrgency, BacktestResult, VerificationLog } from './domain/types';
+import type { AppState, MarketEvent, Hypothesis, HypothesisStatus, HypothesisUrgency, BacktestResult, VerificationLog, PriceRow } from './domain/types';
 
 type View = 'dashboard' | 'event-input' | 'association-tree' | 'hypothesis-detail' | 'backtest' | 'settings';
 
@@ -430,18 +431,48 @@ function HypothesisDetailView({ state, onStatusChange, onDelete, canExecuteAi, o
 
 const pct = (n: number) => `${(n * 100).toFixed(1)}%`;
 
-function BacktestView({ hypotheses }: { hypotheses: Hypothesis[] }) {
+type BacktestProps = {
+  hypotheses: Hypothesis[];
+  jq: ReturnType<typeof useJquants>;
+};
+
+// T+5 まで見るので、イベント日の前後に余裕を持って取得する。
+// 休場を挟むと5営業日は暦日で1か月近くになり得る。
+const shiftDays = (dateStr: string, days: number): string => {
+  const d = new Date(dateStr);
+  d.setDate(d.getDate() + days);
+  return d.toISOString().slice(0, 10);
+};
+
+function BacktestView({ hypotheses, jq }: BacktestProps) {
   const [priceText, setPriceText] = useState('');
   const [eventText, setEventText] = useState('');
+  const [fetchedPrices, setFetchedPrices] = useState<PriceRow[] | null>(null);
   const [results, setResults] = useState<BacktestResult[]>([]);
   const [summary, setSummary] = useState<BacktestSummary[]>([]);
   const [error, setError] = useState('');
 
+  // イベントCSVの銘柄と日付から取得範囲を決める。手でCSVを集める工程を省く。
+  const handleFetchPrices = async () => {
+    const eventRows = parseEventCsv(eventText);
+    if (eventRows.length === 0) { setError('先にイベントCSVを入力してください'); return; }
+    setError('');
+
+    const dates = eventRows.map(r => r.eventDate).sort();
+    const rows = await jq.fetchPrices(
+      eventRows.map(r => r.ticker),
+      shiftDays(dates[0], -14),
+      shiftDays(dates[dates.length - 1], 40),
+    );
+    setFetchedPrices(rows.length > 0 ? rows : null);
+  };
+
   const handleRun = () => {
     try {
-      const priceRows = parsePriceCsv(priceText);
+      // J-Quants から取得済みならそれを使う。無ければ手入力CSVにフォールバック。
+      const priceRows = fetchedPrices ?? parsePriceCsv(priceText);
       const eventRows = parseEventCsv(eventText);
-      if (priceRows.length === 0) { setError('価格CSVが空または不正です'); return; }
+      if (priceRows.length === 0) { setError('価格データがありません（J-Quantsで取得するかCSVを入力してください）'); return; }
       if (eventRows.length === 0) { setError('イベントCSVが空または不正です'); return; }
       const res = runBacktest(priceRows, eventRows);
       setResults(res);
@@ -486,6 +517,44 @@ function BacktestView({ hypotheses }: { hypotheses: Hypothesis[] }) {
               ))}
             </div>
           </div>
+        )}
+      </article>
+
+      <article className="card">
+        <div className="card-header">
+          <p className="eyebrow">株価データ</p>
+          <h3>J-Quants から自動取得</h3>
+        </div>
+        {jq.refreshToken ? (
+          <>
+            <p style={{ color: 'var(--text-2)', marginBottom: 12 }}>
+              イベントCSVの銘柄コードと日付から取得範囲を決め、株価を自動で取り込みます。
+            </p>
+            <button
+              className="btn btn-primary"
+              onClick={handleFetchPrices}
+              disabled={jq.status === 'loading'}
+            >
+              {jq.status === 'loading' ? '取得中…' : '↓ 株価を取得'}
+            </button>
+            {jq.message && (
+              <p style={{ marginTop: 10, color: jq.status === 'error' ? 'var(--danger, #dc2626)' : 'var(--text-2)' }}>
+                {jq.message}
+              </p>
+            )}
+            {fetchedPrices && (
+              <p style={{ marginTop: 6, color: 'var(--text-2)' }}>
+                取得済みの株価を使用します（下のCSVは使いません）。
+                <button className="btn btn-ghost" style={{ marginLeft: 8 }} onClick={() => setFetchedPrices(null)}>
+                  破棄してCSVを使う
+                </button>
+              </p>
+            )}
+          </>
+        ) : (
+          <p style={{ color: 'var(--text-2)', margin: 0 }}>
+            設定画面でJ-Quantsのリフレッシュトークンを登録すると、株価を自動取得できます。
+          </p>
         )}
       </article>
 
@@ -594,12 +663,14 @@ type SettingsProps = {
   onUpdate: (s: ReturnType<typeof useAiSettings>['settings']) => void;
   onExport: () => void;
   onImport: (file: File) => void;
+  jq: ReturnType<typeof useJquants>;
 };
 
-function SettingsView({ settings, usage, onUpdate, onExport, onImport }: SettingsProps) {
+function SettingsView({ settings, usage, onUpdate, onExport, onImport, jq }: SettingsProps) {
   const [daily, setDaily] = useState(String(settings.dailyLimit));
   const [monthly, setMonthly] = useState(String(settings.monthlyLimit));
   const [saved, setSaved] = useState(false);
+  const [tokenInput, setTokenInput] = useState(jq.refreshToken);
 
   const handleSave = () => {
     onUpdate({ dailyLimit: Number(daily) || 5, monthlyLimit: Number(monthly) || 50 });
@@ -650,6 +721,50 @@ function SettingsView({ settings, usage, onUpdate, onExport, onImport }: Setting
 
       <article className="card">
         <div className="card-header">
+          <p className="eyebrow">J-Quants 連携</p>
+          <h3>株価データ取得</h3>
+        </div>
+        <p style={{ color: 'var(--text-2)', marginBottom: 16 }}>
+          JPX公式のJ-Quants APIから株価を取得します。リフレッシュトークンは
+          <strong>この端末内にのみ保存</strong>され、外部には送信されません（J-Quants以外への通信はありません）。
+          トークンの有効期限は1週間です。
+        </p>
+        <div className="form-group">
+          <label>リフレッシュトークン</label>
+          <textarea
+            rows={3}
+            placeholder="J-Quants のマイページで発行したリフレッシュトークンを貼り付け"
+            value={tokenInput}
+            onChange={e => setTokenInput(e.target.value)}
+            style={{ fontFamily: 'monospace', fontSize: 12 }}
+          />
+        </div>
+        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+          <button className="btn btn-primary" onClick={() => jq.setRefreshToken(tokenInput.trim())}>
+            保存
+          </button>
+          <button
+            className="btn btn-ghost"
+            onClick={jq.testConnection}
+            disabled={!jq.refreshToken || jq.status === 'loading'}
+          >
+            接続テスト
+          </button>
+          {jq.refreshToken && (
+            <button className="btn btn-ghost" onClick={() => { jq.setRefreshToken(''); setTokenInput(''); }}>
+              削除
+            </button>
+          )}
+        </div>
+        {jq.message && (
+          <p style={{ marginTop: 12, color: jq.status === 'error' ? 'var(--danger, #dc2626)' : 'var(--text-2)' }}>
+            {jq.status === 'ok' ? '✓ ' : ''}{jq.message}
+          </p>
+        )}
+      </article>
+
+      <article className="card">
+        <div className="card-header">
           <p className="eyebrow">データ管理</p>
           <h3>バックアップ・復元</h3>
         </div>
@@ -687,6 +802,7 @@ export default function App() {
   const { state, addEvent, addHypothesis, updateHypothesisStatus, appendAiResult, addVerificationLog, deleteEvent, deleteHypothesis, replaceState } = useStore();
   const { settings, usage, updateSettings, canExecute, incrementUsage } = useAiSettings();
   const { toasts, pushToast, dismissToast } = useToast();
+  const jq = useJquants();
 
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
     const saved = localStorage.getItem('theme');
@@ -799,7 +915,7 @@ export default function App() {
             {...aiProps}
           />
         )}
-        {view === 'backtest' && <BacktestView hypotheses={state.hypotheses} />}
+        {view === 'backtest' && <BacktestView hypotheses={state.hypotheses} jq={jq} />}
         {view === 'settings' && (
           <SettingsView
             settings={settings}
@@ -807,6 +923,7 @@ export default function App() {
             onUpdate={updateSettings}
             onExport={handleExport}
             onImport={handleImport}
+            jq={jq}
           />
         )}
       </section>

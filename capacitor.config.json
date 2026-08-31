@@ -1,0 +1,16 @@
+{
+  "appId": "com.magarin.myfinancetraining",
+  "appName": "投資仮説OS",
+  "webDir": "dist-android",
+  "android": {
+    "allowMixedContent": false
+  },
+  "server": {
+    "androidScheme": "https"
+  },
+  "plugins": {
+    "CapacitorHttp": {
+      "enabled": true
+    }
+  }
+}
