@@ -1,11 +1,8 @@
 import { CapacitorHttp } from '@capacitor/core';
 import type { PriceRow } from '../domain/types';
 
-const BASE = 'https://api.jquants.com/v1';
-
-export type JquantsCredentials =
-  | { kind: 'refreshToken'; refreshToken: string }
-  | { kind: 'password'; mailaddress: string; password: string };
+// V2 は API キー方式。V1 のトークン交換（refreshToken → idToken → Bearer）は使わない。
+const BASE = 'https://api.jquants.com/v2';
 
 export class JquantsError extends Error {}
 
@@ -13,79 +10,78 @@ type HttpResponse = { status: number; data: unknown };
 
 // ブラウザからの fetch は J-Quants が CORS を許可していないため通らない。
 // Capacitor のネイティブ HTTP は WebView の外で発行されるので制約を受けない。
-const post = async (url: string, body: unknown): Promise<HttpResponse> =>
-  CapacitorHttp.post({ url, headers: { 'Content-Type': 'application/json' }, data: body });
-
-const get = async (url: string, idToken: string): Promise<HttpResponse> =>
-  CapacitorHttp.get({ url, headers: { Authorization: `Bearer ${idToken}` } });
+const get = async (path: string, apiKey: string, params: Record<string, string>): Promise<HttpResponse> => {
+  const query = new URLSearchParams(params).toString();
+  return CapacitorHttp.get({
+    url: `${BASE}${path}${query ? `?${query}` : ''}`,
+    headers: { 'x-api-key': apiKey },
+  });
+};
 
 const asRecord = (data: unknown): Record<string, unknown> =>
   data != null && typeof data === 'object' ? (data as Record<string, unknown>) : {};
 
-const failureMessage = (status: number, data: unknown): string => {
+// どの操作で失敗したかを message に含める。含めないと、認証の問題なのか
+// 取得範囲の問題なのか画面から切り分けられない。
+const failureMessage = (operation: string, status: number, data: unknown): string => {
   const msg = asRecord(data).message;
-  const detail = typeof msg === 'string' ? `：${msg}` : '';
-  if (status === 400) return `リクエストが不正です${detail}`;
-  if (status === 401) return `認証に失敗しました。リフレッシュトークンの期限切れ（1週間）か、値が誤っています${detail}`;
-  if (status === 403) return `このプランでは取得できないデータです${detail}`;
-  if (status === 413) return `取得範囲が広すぎます。期間を狭めてください${detail}`;
-  return `J-Quants API エラー (HTTP ${status})${detail}`;
+  const detail = typeof msg === 'string' && msg ? `：${msg}` : '';
+  const reason =
+    status === 400 ? 'リクエストが不正です' :
+    status === 401 ? 'APIキーが正しくありません。余分な空白や改行が入っていないか確認してください' :
+    status === 403 ? 'このプランでは取得できません。契約プランのデータ期間外か、対象外のAPIです' :
+    status === 413 ? '取得範囲が広すぎます。期間を狭めてください' :
+    status === 429 ? 'リクエスト数の上限に達しました。時間をおいて再試行してください' :
+    `HTTP ${status}`;
+  return `${operation}に失敗しました（${reason}）${detail}`;
 };
 
-export const fetchRefreshToken = async (
-  mailaddress: string,
-  password: string,
-): Promise<string> => {
-  const res = await post(`${BASE}/token/auth_user`, { mailaddress, password });
-  if (res.status !== 200) throw new JquantsError(failureMessage(res.status, res.data));
-  const token = asRecord(res.data).refreshToken;
-  if (typeof token !== 'string') throw new JquantsError('リフレッシュトークンを取得できませんでした');
-  return token;
+// 疎通確認には Free プランでも使える取引カレンダーを使う。
+// 株価で試すとプラン範囲外の期間を引いて 403 になり、鍵の問題と区別できない。
+export const testApiKey = async (apiKey: string): Promise<void> => {
+  const today = new Date().toISOString().slice(0, 10);
+  const res = await get('/markets/calendar', apiKey, { from: today, to: today });
+  if (res.status !== 200) throw new JquantsError(failureMessage('接続確認', res.status, res.data));
 };
 
-export const fetchIdToken = async (refreshToken: string): Promise<string> => {
-  // refreshtoken はボディではなくクエリ文字列で渡す仕様
-  const url = `${BASE}/token/auth_refresh?refreshtoken=${encodeURIComponent(refreshToken)}`;
-  const res = await post(url, {});
-  if (res.status !== 200) throw new JquantsError(failureMessage(res.status, res.data));
-  const token = asRecord(res.data).idToken;
-  if (typeof token !== 'string') throw new JquantsError('IDトークンを取得できませんでした');
-  return token;
+const pickString = (rec: Record<string, unknown>, keys: string[]): string | null => {
+  for (const k of keys) {
+    const v = rec[k];
+    if (typeof v === 'string' && v) return v;
+  }
+  return null;
 };
 
-export const resolveIdToken = async (cred: JquantsCredentials): Promise<string> => {
-  const refreshToken = cred.kind === 'refreshToken'
-    ? cred.refreshToken
-    : await fetchRefreshToken(cred.mailaddress, cred.password);
-  return fetchIdToken(refreshToken);
+const pickNumber = (rec: Record<string, unknown>, keys: string[]): number | null => {
+  for (const k of keys) {
+    const v = rec[k];
+    if (typeof v === 'number' && Number.isFinite(v)) return v;
+    if (typeof v === 'string' && v !== '' && Number.isFinite(Number(v))) return Number(v);
+  }
+  return null;
 };
 
-type DailyQuote = {
-  Date?: unknown;
-  Code?: unknown;
-  Close?: unknown;
-  AdjustmentClose?: unknown;
+// 株式分割をまたぐと調整前の終値は不連続になり、リターンが分割比率のぶん誤る。
+// 調整済み終値があればそちらを優先する。フィールド名は表記ゆれを吸収する。
+const toPriceRow = (row: unknown, ticker: string): PriceRow | null => {
+  const rec = asRecord(row);
+  const date = pickString(rec, ['Date', 'date']);
+  const close = pickNumber(rec, [
+    'AdjustmentClose', 'adjustment_close', 'adjustmentClose',
+    'Close', 'close',
+  ]);
+  if (date == null || close == null || close <= 0) return null;
+  return { date, ticker, close };
 };
 
-// 株式分割をまたぐと生の終値は不連続になり、リターンが分割比率のぶん誤る。
-// J-Quants は調整済み終値を返すので、あればそちらを使う。
-const toPriceRow = (q: DailyQuote, ticker: string): PriceRow | null => {
-  const date = typeof q.Date === 'string' ? q.Date : null;
-  const raw = typeof q.AdjustmentClose === 'number' ? q.AdjustmentClose
-            : typeof q.Close === 'number' ? q.Close
-            : null;
-  if (date == null || raw == null || raw <= 0) return null;
-  return { date, ticker, close: raw };
-};
-
-// "6857 アドバンテスト" / "6857.T" / "6857" のいずれからも4桁コードを取り出す
+// "6857 アドバンテスト" / "6857.T" / "6857" のいずれからも銘柄コードを取り出す
 export const normalizeCode = (input: string): string | null => {
   const m = input.trim().match(/\d{4,5}/);
   return m ? m[0] : null;
 };
 
-export const fetchDailyQuotes = async (
-  idToken: string,
+export const fetchDailyBars = async (
+  apiKey: string,
   code: string,
   from: string,
   to: string,
@@ -95,16 +91,18 @@ export const fetchDailyQuotes = async (
 
   // 期間が長いとレスポンスが分割される。pagination_key が返る限り追う。
   do {
-    const params = new URLSearchParams({ code, from, to });
-    if (pagination) params.set('pagination_key', pagination);
-    const res = await get(`${BASE}/prices/daily_quotes?${params}`, idToken);
-    if (res.status !== 200) throw new JquantsError(failureMessage(res.status, res.data));
+    const params: Record<string, string> = { code, from, to };
+    if (pagination) params.pagination_key = pagination;
+    const res = await get('/equities/bars/daily', apiKey, params);
+    if (res.status !== 200) {
+      throw new JquantsError(failureMessage(`株価取得（${code}）`, res.status, res.data));
+    }
 
     const body = asRecord(res.data);
-    const quotes = Array.isArray(body.daily_quotes) ? (body.daily_quotes as DailyQuote[]) : [];
-    for (const q of quotes) {
-      const row = toPriceRow(q, code);
-      if (row) rows.push(row);
+    const data = Array.isArray(body.data) ? body.data : [];
+    for (const row of data) {
+      const priceRow = toPriceRow(row, code);
+      if (priceRow) rows.push(priceRow);
     }
     pagination = typeof body.pagination_key === 'string' ? body.pagination_key : undefined;
   } while (pagination);

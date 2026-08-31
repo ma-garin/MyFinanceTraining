@@ -525,7 +525,7 @@ function BacktestView({ hypotheses, jq }: BacktestProps) {
           <p className="eyebrow">株価データ</p>
           <h3>J-Quants から自動取得</h3>
         </div>
-        {jq.refreshToken ? (
+        {jq.apiKey ? (
           <>
             <p style={{ color: 'var(--text-2)', marginBottom: 12 }}>
               イベントCSVの銘柄コードと日付から取得範囲を決め、株価を自動で取り込みます。
@@ -553,7 +553,7 @@ function BacktestView({ hypotheses, jq }: BacktestProps) {
           </>
         ) : (
           <p style={{ color: 'var(--text-2)', margin: 0 }}>
-            設定画面でJ-Quantsのリフレッシュトークンを登録すると、株価を自動取得できます。
+            設定画面でJ-QuantsのAPIキーを登録すると、株価を自動取得できます。
           </p>
         )}
       </article>
@@ -670,7 +670,7 @@ function SettingsView({ settings, usage, onUpdate, onExport, onImport, jq }: Set
   const [daily, setDaily] = useState(String(settings.dailyLimit));
   const [monthly, setMonthly] = useState(String(settings.monthlyLimit));
   const [saved, setSaved] = useState(false);
-  const [tokenInput, setTokenInput] = useState(jq.refreshToken);
+  const [keyInput, setKeyInput] = useState(jq.apiKey);
 
   const handleSave = () => {
     onUpdate({ dailyLimit: Number(daily) || 5, monthlyLimit: Number(monthly) || 50 });
@@ -725,33 +725,33 @@ function SettingsView({ settings, usage, onUpdate, onExport, onImport, jq }: Set
           <h3>株価データ取得</h3>
         </div>
         <p style={{ color: 'var(--text-2)', marginBottom: 16 }}>
-          JPX公式のJ-Quants APIから株価を取得します。リフレッシュトークンは
+          JPX公式のJ-Quants API（V2）から株価を取得します。APIキーは
           <strong>この端末内にのみ保存</strong>され、外部には送信されません（J-Quants以外への通信はありません）。
-          トークンの有効期限は1週間です。
+          キーはJ-Quantsのダッシュボードで取得でき、有効期限はありません。
         </p>
         <div className="form-group">
-          <label>リフレッシュトークン</label>
+          <label>APIキー</label>
           <textarea
             rows={3}
-            placeholder="J-Quants のマイページで発行したリフレッシュトークンを貼り付け"
-            value={tokenInput}
-            onChange={e => setTokenInput(e.target.value)}
+            placeholder="J-Quants のダッシュボードで取得したAPIキーを貼り付け"
+            value={keyInput}
+            onChange={e => setKeyInput(e.target.value)}
             style={{ fontFamily: 'monospace', fontSize: 12 }}
           />
         </div>
         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-          <button className="btn btn-primary" onClick={() => jq.setRefreshToken(tokenInput.trim())}>
+          <button className="btn btn-primary" onClick={() => jq.setApiKey(keyInput.trim())}>
             保存
           </button>
           <button
             className="btn btn-ghost"
             onClick={jq.testConnection}
-            disabled={!jq.refreshToken || jq.status === 'loading'}
+            disabled={!jq.apiKey || jq.status === 'loading'}
           >
             接続テスト
           </button>
-          {jq.refreshToken && (
-            <button className="btn btn-ghost" onClick={() => { jq.setRefreshToken(''); setTokenInput(''); }}>
+          {jq.apiKey && (
+            <button className="btn btn-ghost" onClick={() => { jq.setApiKey(''); setKeyInput(''); }}>
               削除
             </button>
           )}

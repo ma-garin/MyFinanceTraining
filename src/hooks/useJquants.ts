@@ -1,10 +1,7 @@
 import { useState, useCallback } from 'react';
 import type { PriceRow } from '../domain/types';
-import { fetchIdToken, fetchDailyQuotes, normalizeCode, JquantsError } from '../services/jquantsClient';
-import {
-  loadRefreshToken, saveRefreshToken,
-  loadIdToken, saveIdToken, clearIdToken,
-} from '../infrastructure/jquantsStorage';
+import { testApiKey, fetchDailyBars, normalizeCode, JquantsError } from '../services/jquantsClient';
+import { loadApiKey, saveApiKey } from '../infrastructure/jquantsStorage';
 
 export type JquantsStatus = 'idle' | 'loading' | 'ok' | 'error';
 
@@ -14,40 +11,29 @@ const messageOf = (err: unknown): string =>
   : '不明なエラーが発生しました';
 
 export const useJquants = () => {
-  const [refreshToken, setRefreshTokenState] = useState<string>(loadRefreshToken);
+  const [apiKey, setApiKeyState] = useState<string>(loadApiKey);
   const [status, setStatus] = useState<JquantsStatus>('idle');
   const [message, setMessage] = useState<string>('');
 
-  const setRefreshToken = useCallback((token: string) => {
-    setRefreshTokenState(token);
-    saveRefreshToken(token);
-    // 別アカウントのトークンに差し替えたとき、古いIDトークンを使い続けない
-    clearIdToken();
+  const setApiKey = useCallback((key: string) => {
+    setApiKeyState(key);
+    saveApiKey(key);
     setStatus('idle');
     setMessage('');
   }, []);
-
-  const ensureIdToken = useCallback(async (): Promise<string> => {
-    const cached = loadIdToken();
-    if (cached) return cached;
-    if (!refreshToken) throw new JquantsError('リフレッシュトークンが未設定です');
-    const token = await fetchIdToken(refreshToken);
-    saveIdToken(token);
-    return token;
-  }, [refreshToken]);
 
   const testConnection = useCallback(async () => {
     setStatus('loading');
     setMessage('接続を確認しています…');
     try {
-      await ensureIdToken();
+      await testApiKey(apiKey);
       setStatus('ok');
       setMessage('接続に成功しました');
     } catch (err) {
       setStatus('error');
       setMessage(messageOf(err));
     }
-  }, [ensureIdToken]);
+  }, [apiKey]);
 
   // 仮説の銘柄候補は "6857 アドバンテスト" 形式なので、コードだけ取り出して問い合わせる
   const fetchPrices = useCallback(async (
@@ -64,11 +50,15 @@ export const useJquants = () => {
     }
 
     try {
-      const idToken = await ensureIdToken();
       const rows: PriceRow[] = [];
       for (const [i, code] of codes.entries()) {
         setMessage(`株価を取得中… (${i + 1}/${codes.length}) ${code}`);
-        rows.push(...await fetchDailyQuotes(idToken, code, from, to));
+        rows.push(...await fetchDailyBars(apiKey, code, from, to));
+      }
+      if (rows.length === 0) {
+        setStatus('error');
+        setMessage(`${from}〜${to} のデータが0件でした。契約プランのデータ期間内か確認してください（無料プランは直近2年・12週遅延）`);
+        return [];
       }
       setStatus('ok');
       setMessage(`${codes.length}銘柄 / ${rows.length}行を取得しました`);
@@ -78,7 +68,7 @@ export const useJquants = () => {
       setMessage(messageOf(err));
       return [];
     }
-  }, [ensureIdToken]);
+  }, [apiKey]);
 
-  return { refreshToken, setRefreshToken, status, message, testConnection, fetchPrices };
+  return { apiKey, setApiKey, status, message, testConnection, fetchPrices };
 };
