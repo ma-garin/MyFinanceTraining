@@ -123,6 +123,7 @@ export type BacktestEventRow = {
 export type BacktestResult = {
   hypothesisId: string;
   eventDate: string;
+  baseDate: string | null;  // 実際に起点とした営業日（イベント日が休場なら翌営業日）
   ticker: string;
   notes: string;
   t1Return: number | null;
