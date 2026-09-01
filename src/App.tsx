@@ -588,7 +588,7 @@ function BacktestView({ hypotheses, jq }: BacktestProps) {
                     <th>勝率 T+1</th><th>勝率 T+3</th><th>勝率 T+5</th>
                     <th>平均 T+1</th><th>平均 T+3</th><th>平均 T+5</th>
                     <th>σ T+1</th><th>σ T+3</th><th>σ T+5</th>
-                    <th>最大 DD</th>
+                    <th>最悪 T+5</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -596,8 +596,8 @@ function BacktestView({ hypotheses, jq }: BacktestProps) {
                     <tr key={s.ticker}>
                       <td><strong>{s.ticker}</strong></td>
                       <td>
-                        {s.count}
-                        {s.sampleWarning && <span title="サンプル数不足" style={{ marginLeft: 4, color: '#d97706' }}>⚠</span>}
+                        {s.measuredCount}/{s.count}
+                        {s.sampleWarning && <span title="実測できたサンプルが5件未満" style={{ marginLeft: 4, color: '#d97706' }}>⚠</span>}
                       </td>
                       <td className={s.winRate1 >= 0.5 ? 'ret-pos' : 'ret-neg'}>{pct(s.winRate1)}</td>
                       <td className={s.winRate3 >= 0.5 ? 'ret-pos' : 'ret-neg'}>{pct(s.winRate3)}</td>
@@ -608,7 +608,7 @@ function BacktestView({ hypotheses, jq }: BacktestProps) {
                       <td>{pct(s.stdDev1)}</td>
                       <td>{pct(s.stdDev3)}</td>
                       <td>{pct(s.stdDev5)}</td>
-                      <td className="ret-neg">{pct(s.maxDrawdown)}</td>
+                      <td className="ret-neg">{pct(s.worstReturn5)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -622,7 +622,7 @@ function BacktestView({ hypotheses, jq }: BacktestProps) {
               <table className="bt-table">
                 <thead>
                   <tr>
-                    <th>仮説 ID</th><th>イベント日</th><th>銘柄</th>
+                    <th>仮説 ID</th><th>イベント日</th><th>起点営業日</th><th>銘柄</th>
                     <th>T+1</th><th>T+3</th><th>T+5</th><th>備考</th>
                   </tr>
                 </thead>
@@ -631,6 +631,9 @@ function BacktestView({ hypotheses, jq }: BacktestProps) {
                     <tr key={i}>
                       <td style={{ fontSize: 12 }}>{r.hypothesisId}</td>
                       <td>{r.eventDate}</td>
+                      <td className={r.baseDate === r.eventDate ? '' : 'ret-neg'}>
+                        {r.baseDate ?? '—'}
+                      </td>
                       <td>{r.ticker}</td>
                       <td className={r.t1Return == null ? '' : r.t1Return >= 0 ? 'ret-pos' : 'ret-neg'}>
                         {r.t1Return == null ? '—' : pct(r.t1Return)}
