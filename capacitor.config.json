@@ -1,0 +1,16 @@
+{
+  "appId": "com.magarin.myfinancetraining",
+  "appName": "読み筋",
+  "webDir": "dist-android",
+  "android": {
+    "allowMixedContent": false
+  },
+  "server": {
+    "androidScheme": "https"
+  },
+  "plugins": {
+    "CapacitorHttp": {
+      "enabled": true
+    }
+  }
+}

@@ -1,8 +1,19 @@
-# MyFinanceTraining — Claude Code Instructions
+# 読み筋（MyFinanceTraining） — Claude Code Instructions
+
+## 回答スタイル（最優先）
+
+**簡潔に答える。** 結論を先に書き、必要な事実だけを残す。
+
+- 長い前置き、見出しの乱立、同じ内容の言い換えをしない
+- 表・箇条書きは情報が多いときだけ使う。3項目以下なら文で書く
+- 依頼されていない提案・注意書き・免責文を並べない
+- 確認質問は本当に必要なものだけを1〜2個に絞る
 
 ## プロジェクト概要
 
-ニュース・市場イベントから連想ツリーを生成し、日本株/ETF/ETNの投資仮説を管理・検証する個人向け「投資仮説OS」。
+ニュースを起点に波及の筋道を立て、日本株/ETF/ETNの仮説として残し、過去の値動きで検証するAndroidアプリ「読み筋」。
+
+配布形態は Capacitor で作る APK。株価は J-Quants API V2（`x-api-key`）から取得する。
 
 **このツールは投資助言・売買自動化ツールではない。** 仮説管理・検証・判断補助ツール。
 
@@ -23,6 +34,7 @@ npm run preview   # ビルド後のプレビュー
 ## 技術スタック
 
 - **フレームワーク**: React 19 + TypeScript + Vite
+- **配布**: Capacitor 8 → Android APK（`claude/apk-*` ブランチへの push でCIビルド）
 - **状態管理**: useState + localStorage（`myfinancetraining_v1` キー）
 - **スタイル**: 素のCSS（`src/styles.css`）
 - **PWA**: manifest + Service Worker（`public/sw.js`）

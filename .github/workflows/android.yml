@@ -1,0 +1,127 @@
+name: Build Android APK
+
+# 自動では走らせない。push や PR のたびには回さない。
+#
+# APK が要るときだけ、claude/apk-* ブランチに内容を push して回す。
+# Actions の画面を開いてボタンを押す手間をなくすため（git だけで完結する）。
+#   git push origin origin/main:refs/heads/claude/apk-1
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - 'claude/apk-*'
+
+# 同じブランチで二重に走らせない。走っているものは止めない
+# （リリースの公開を途中で切らないため）。
+concurrency:
+  group: android-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    # 詰まったときに既定の6時間居座らせない。通常は数分で終わる。
+    timeout-minutes: 20
+    permissions:
+      contents: write # APK を Release に置くため
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          # Capacitor 8 の CLI は Node >= 22 を要求する
+          node-version: '22'
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      # 手順は package.json の build:android に置く。ここに書き写すと、
+      # 片方だけ直したときに手元と CI で違うものが出来る。
+      - name: Build web assets for Android
+        run: npm run build:android
+
+      # 署名鍵を固定する。鍵は ANDROID_KEYSTORE_BASE64（リポジトリシークレット）
+      # に入れておき、ファイルに書いて ANDROID_KEYSTORE_PATH で build.gradle に
+      # 明示的に渡す。AGP 既定の ~/.android/debug.keystore はランナー上で参照先が
+      # ずれ、毎回その場で別の鍵が生成される（別署名の APK は上書きできない）。
+      - name: Restore signing key
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          if [ -z "$KEYSTORE_BASE64" ]; then
+            echo "::warning::ANDROID_KEYSTORE_BASE64 が未設定です。ビルドごとに署名鍵が変わるため、上書きインストールできません（入れ直しが必要になります）。"
+            exit 0
+          fi
+          echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/ci-debug.keystore"
+          keytool -list -keystore "$RUNNER_TEMP/ci-debug.keystore" -storepass android \
+            -alias androiddebugkey > /dev/null
+          echo "ANDROID_KEYSTORE_PATH=$RUNNER_TEMP/ci-debug.keystore" >> "$GITHUB_ENV"
+          echo "固定の署名鍵を使います"
+
+      - name: Build debug APK
+        working-directory: android
+        env:
+          # versionCode を上げて、OS に「更新」として扱わせる
+          # （既定の 1 のままだと何を入れても同じ版に見える）
+          ANDROID_VERSION_CODE: ${{ github.run_number }}
+        run: ./gradlew assembleDebug --no-daemon
+
+      # 出来上がった APK の署名を実測する。「鍵を置いたつもり」が黙って無視されると、
+      # 更新できない APK を配ってしまう。意図ではなく成果物を検証する。
+      #
+      # 期待値はリポジトリ変数 ANDROID_CERT_SHA256（証明書のSHA-256。公開情報なので
+      # secret ではなく variable でよい）に入れる。設定されていれば照合して落とし、
+      # 未設定なら実測値の表示だけ行う。
+      - name: Verify APK signature
+        if: env.ANDROID_KEYSTORE_PATH != ''
+        env:
+          EXPECTED_CERT_SHA256: ${{ vars.ANDROID_CERT_SHA256 }}
+        run: |
+          APKSIGNER="$ANDROID_HOME/build-tools/$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -1)/apksigner"
+          ACTUAL=$("$APKSIGNER" verify --print-certs \
+            android/app/build/outputs/apk/debug/app-debug.apk \
+            | grep 'certificate SHA-256' | head -1 | awk '{print $NF}')
+          echo "actual: $ACTUAL"
+          if [ -z "$EXPECTED_CERT_SHA256" ]; then
+            echo "::warning::ANDROID_CERT_SHA256 が未設定のため署名の照合を行いません。上の値をこの変数に設定してください。"
+            exit 0
+          fi
+          # keytool は 4A:0D:D7 形式の大文字、apksigner は区切りなしの小文字で出す。
+          # どちらを貼られても通るよう正規化してから比べる。
+          NORM_EXPECTED=$(echo "$EXPECTED_CERT_SHA256" | tr -d ': ' | tr 'A-Z' 'a-z')
+          NORM_ACTUAL=$(echo "$ACTUAL" | tr -d ': ' | tr 'A-Z' 'a-z')
+          echo "expected: $NORM_EXPECTED"
+          if [ "$NORM_ACTUAL" != "$NORM_EXPECTED" ]; then
+            echo "::error::APK の署名が固定鍵と一致しません。この APK は配布してはいけない（上書きインストールできない）"
+            exit 1
+          fi
+          echo "署名OK: 固定鍵で署名されています"
+
+      - name: Upload APK (artifact)
+        uses: actions/upload-artifact@v4
+        with:
+          name: myfinancetraining-debug-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+
+      # Release に APK そのものを置く。成果物の zip と違い、スマホのブラウザから
+      # 直接タップしてインストールできる。常に下のURLが最新を指す:
+      #   https://github.com/ma-garin/MyFinanceTraining/releases/latest/download/app-debug.apk
+      - name: Publish APK (release)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "android-${{ github.run_number }}" \
+            android/app/build/outputs/apk/debug/app-debug.apk \
+            --title "Android APK #${{ github.run_number }}" \
+            --notes "main の最新ビルド（デバッグ版）。スマホのブラウザから app-debug.apk をタップしてインストールできます。"

@@ -1,7 +1,7 @@
 {
-  "name": "MyFinanceTraining",
-  "short_name": "FinanceOS",
-  "description": "ニュースと市場イベントから日本株の投資仮説を管理するPWA",
+  "name": "読み筋",
+  "short_name": "読み筋",
+  "description": "ニュースから日本株の読み筋を立てて検証する仮説ノート",
   "start_url": "/MyFinanceTraining/",
   "scope": "/MyFinanceTraining/",
   "display": "standalone",

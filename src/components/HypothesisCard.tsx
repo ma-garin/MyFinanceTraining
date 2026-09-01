@@ -27,13 +27,6 @@ const CATEGORY_LABELS: Record<string, string> = {
   other:         'その他',
 };
 
-const STATUS_ICONS: Record<string, string> = {
-  adopted:    '✓',
-  watching:   '👁',
-  rejected:   '✕',
-  needs_test: '🧪',
-};
-
 const URGENCY_LABELS: Record<HypothesisUrgency, string> = {
   high:   '🔴 今週中',
   medium: '🟡 今月中',
@@ -105,7 +98,7 @@ export function HypothesisCard({
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
           <span className={`status-pill status-${h.status}`}>
-            {STATUS_ICONS[h.status]} {STATUS_LABELS[h.status]}
+            {STATUS_LABELS[h.status]}
           </span>
           {onDelete && (
             confirmDelete ? (
