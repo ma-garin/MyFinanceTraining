@@ -547,3 +547,4 @@
 .urgency-high   { background: #fee2e2; color: #b91c1c; }
 .urgency-medium { background: #fef3c7; color: #92400e; }
 .urgency-low    { background: #e0e7ff; color: #3730a3; }
+.run-note.is-warn { color: #92400e; }

@@ -487,6 +487,15 @@ const shiftDays = (dateStr: string, days: number): string => {
 
 type PlannedRow = BacktestEventRow & { label: string };
 
+// 無料プランは12週遅延で配信される。直近のイベントは取得しても0件になるため、
+// 実行前に知らせる。取得後にエラーで気づくのでは操作が無駄になる。
+const FREE_PLAN_DELAY_DAYS = 84;
+
+const isTooRecentForFreePlan = (eventDate: string): boolean => {
+  const cutoff = Date.now() - FREE_PLAN_DELAY_DAYS * 24 * 60 * 60 * 1000;
+  return new Date(eventDate).getTime() > cutoff;
+};
+
 // 仮説そのものが検証の入力になる。手でCSVを書き起こす工程は、写し間違いを
 // 生むだけで何の判断も含まない。
 const planRows = (
@@ -532,6 +541,8 @@ function BacktestView({ hypotheses, events, jq }: BacktestProps) {
 
   // コードだけでは何の銘柄か分からない。表示用に元の "6857 アドバンテスト" を引く
   const labelOf = new Map(plannedRows.map(r => [r.ticker, r.label]));
+
+  const recentCount = chosen.filter(p => isTooRecentForFreePlan(p.rows[0].eventDate)).length;
 
   const toggle = (id: string) =>
     setSelected(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
@@ -640,6 +651,12 @@ function BacktestView({ hypotheses, events, jq }: BacktestProps) {
                 ? `${chosen.length}件の仮説 / ${new Set(plannedRows.map(r => r.ticker)).size}銘柄を検証します`
                 : '上で仮説を選んでください'}
             </p>
+            {recentCount > 0 && (
+              <p className="run-note is-warn">
+                選んだ仮説のうち{recentCount}件はイベント日が最近すぎます。無料プランは12週間遅れて配信されるため、
+                まだ株価を取得できない可能性があります。
+              </p>
+            )}
             <button
               className="btn btn-primary"
               onClick={handleRunSelected}
