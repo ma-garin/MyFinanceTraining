@@ -1,6 +1,22 @@
-# MyFinanceTraining
+# 読み筋
 
-Global Event → Japan Market Reaction を対象に、ニュース・市場イベントから連想ツリーを生成し、日本株/ETF/ETNの投資仮説を管理・検証するための個人向け投資仮説OSです。
+ニュースを起点に「この先どう波及するか」の筋道を立て、日本株/ETF/ETNの仮説として残し、過去の値動きで検証するAndroidアプリです。
+
+リポジトリ名は `MyFinanceTraining` のままですが、アプリ名は「読み筋」です。
+
+## インストール
+
+Androidの実機に入れる場合、スマートフォンのブラウザで下のURLを開き、ダウンロードしたAPKをタップします。
+
+```text
+https://github.com/ma-garin/MyFinanceTraining/releases/latest/download/app-debug.apk
+```
+
+APKを作り直すときは `claude/apk-*` ブランチに push すると GitHub Actions がビルドし、Releases に公開します。
+
+```bash
+git push origin origin/main:refs/heads/claude/apk-1
+```
 
 ## 目的
 
@@ -25,21 +41,22 @@ Global Event → Japan Market Reaction を対象に、ニュース・市場イ�
 - 通常処理はルールベース、銘柄候補抽出、スコアリング、仮説DBで行う
 - 売買自動化は初期スコープ外とし、判断補助・検証・記録に限定する
 
-## アプリ起動
+## 開発
 
 ```bash
 npm install
-npm run dev
+npm run dev            # 開発サーバー
+npm run build          # Web（GitHub Pages）向けビルド
+npm run build:android  # Android向けビルド + capacitor sync
 ```
 
-ビルド確認：
+Web版は GitHub Pages 配信を想定し Vite の `base` を `/MyFinanceTraining/` にしています。Android版は capacitor が `https://localhost/` 直下から配信するため、`BUILD_TARGET=capacitor` のときは `base` を付けません。
 
-```bash
-npm run build
-npm run preview
-```
+## 株価データ
 
-GitHub Pages 配信を想定し、Viteの `base` は `/MyFinanceTraining/` に設定しています。
+JPX公式の [J-Quants API](https://jpx-jquants.com/)（V2）から取得します。設定画面でAPIキーを登録すると、仮説を選ぶだけで対象銘柄の株価を取得して検証できます。APIキーは端末内にのみ保存されます。
+
+ブラウザからは J-Quants の CORS 制約で直接呼べないため、株価取得はAndroidアプリ（Capacitorのネイティブ HTTP）でのみ動作します。
 
 ## 初期スコープ
 

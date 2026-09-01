@@ -884,7 +884,7 @@ function SettingsView({ settings, usage, onUpdate, onExport, onImport, jq }: Set
           <h3>バックアップ・復元</h3>
         </div>
         <p style={{ color: 'var(--text-2)', marginBottom: 16 }}>
-          データは localStorage に保存されています。JSONファイルでバックアップ・移行できます。
+          データはこの端末の中だけに保存されます。機種変更や再インストールで消えるため、JSONファイルで控えを取ってください。
         </p>
         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
           <button className="btn btn-primary" onClick={onExport}>JSONエクスポート</button>
