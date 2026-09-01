@@ -28,10 +28,10 @@ const CATEGORY_LABELS: Record<string, string> = {
 };
 
 const STATUS_ICONS: Record<string, string> = {
-  adopted:    '✓',
-  watching:   '👁',
-  rejected:   '✕',
-  needs_test: '🧪',
+  adopted:    '',
+  watching:   '',
+  rejected:   '',
+  needs_test: '',
 };
 
 const URGENCY_LABELS: Record<HypothesisUrgency, string> = {

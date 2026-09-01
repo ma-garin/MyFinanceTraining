@@ -9,10 +9,10 @@ const STATUS_COLOR: Record<string, string> = {
 };
 
 const STATUS_LABELS: Record<string, string> = {
-  adopted:    '✓ 採用',
-  watching:   '👁 様子見',
-  rejected:   '✕ 棄却',
-  needs_test: '🧪 要検証',
+  adopted:    '採用',
+  watching:   '様子見',
+  rejected:   '棄却',
+  needs_test: '要検証',
 };
 
 const CATEGORY_LABELS: Record<string, string> = {

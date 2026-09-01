@@ -427,3 +427,123 @@
   .filter-bar { padding: 10px 14px; }
   .filter-group { gap: 8px; }
 }
+
+/* ─── 検証: 仮説ピッカー ─── */
+.pick-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 12px;
+  border-top: 1px solid var(--border-light);
+  cursor: pointer;
+}
+.pick-row:first-of-type { border-top: none; }
+.pick-row.is-disabled { cursor: not-allowed; opacity: .55; }
+
+.pick-row input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  margin: 2px 0 0;
+  flex: none;
+  accent-color: var(--brand-accent);
+}
+
+.pick-body  { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.pick-title { font-size: 14.5px; font-weight: 600; line-height: 1.5; color: var(--text); }
+.pick-meta  { font-size: 12.5px; color: var(--text-3); font-variant-numeric: tabular-nums; }
+
+.pick-actions { padding-top: 12px; border-top: 1px solid var(--border-light); margin-top: 4px; }
+
+.run-summary {
+  margin: 0 0 12px;
+  font-size: 14px;
+  color: var(--text-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.run-note { margin: 12px 0 0; font-size: 13.5px; color: var(--text-2); line-height: 1.6; }
+.run-note.is-error { color: #b91c1c; }
+
+.empty-note {
+  margin: 0 0 12px;
+  font-size: 13.5px;
+  line-height: 1.7;
+  color: var(--text-3);
+}
+
+.link-toggle {
+  display: block;
+  margin-top: 16px;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: 13.5px;
+  color: var(--brand-accent);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.csv-panel { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border-light); }
+
+/* 絵文字の警告記号は表の行高を崩し、意味も伝わらない */
+.warn-mark {
+  display: inline-grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  margin-left: 6px;
+  border-radius: 50%;
+  background: #b45309;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  vertical-align: middle;
+}
+
+.cell-id {
+  font-size: 11.5px;
+  color: var(--text-3);
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ─── ホーム: 今やること ─── */
+.card-action { border-left: 3px solid var(--brand-accent); }
+
+.action-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 12px;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.action-row + .action-row { margin-top: 8px; }
+
+.action-title {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.5;
+  color: var(--text);
+  min-width: 0;
+}
+
+/* 期限は色だけでなく文字でも示す（色覚差と暗所での判別のため） */
+.urgency-tag {
+  flex: none;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.urgency-high   { background: #fee2e2; color: #b91c1c; }
+.urgency-medium { background: #fef3c7; color: #92400e; }
+.urgency-low    { background: #e0e7ff; color: #3730a3; }

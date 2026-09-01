@@ -8,10 +8,11 @@ import { HypothesisCard } from './components/HypothesisCard';
 import { EventTree } from './components/EventTree';
 import { runBacktest, summarizeBacktest, type BacktestSummary } from './services/backtestEngine';
 import { useJquants } from './hooks/useJquants';
+import { normalizeCode } from './services/jquantsClient';
 import { parsePriceCsv, parseEventCsv, PRICE_CSV_SAMPLE, EVENT_CSV_SAMPLE } from './services/csvParser';
 import { exportStateAsJson, importStateFromJson } from './infrastructure/storage';
 import { initialState } from './data/sampleData';
-import type { AppState, MarketEvent, Hypothesis, HypothesisStatus, HypothesisUrgency, BacktestResult, VerificationLog, PriceRow } from './domain/types';
+import type { AppState, MarketEvent, Hypothesis, HypothesisStatus, HypothesisUrgency, BacktestResult, BacktestEventRow, VerificationLog, PriceRow } from './domain/types';
 
 type View = 'dashboard' | 'event-input' | 'association-tree' | 'hypothesis-detail' | 'backtest' | 'settings';
 
@@ -23,6 +24,14 @@ const NAV_ITEMS: { icon: string; label: string; mobileLabel: string; view: View 
   { icon: '↗', label: 'バックテスト',    mobileLabel: 'テスト', view: 'backtest' },
   { icon: '⚙', label: '設定',           mobileLabel: '設定',   view: 'settings' },
 ];
+
+const URGENCY_TEXT: Record<HypothesisUrgency, string> = {
+  high: '今週中', medium: '今月中', low: '長期',
+};
+
+const STATUS_TEXT: Record<HypothesisStatus, string> = {
+  adopted: '採用', watching: '様子見', rejected: '棄却', needs_test: '要検証',
+};
 
 const CATEGORY_LABELS: Record<string, string> = {
   geopolitics:   '地政学',
@@ -111,6 +120,12 @@ function DashboardView({ state, onLoadSample, onNavigate }: DashboardProps) {
   const watching = state.hypotheses.filter(h => h.status === 'watching').length;
   const needsTest = state.hypotheses.filter(h => h.status === 'needs_test').length;
 
+  // 期限が近いものほど先に判断が要る。棄却・採用済みは行動が終わっている
+  const URGENCY_ORDER: Record<HypothesisUrgency, number> = { high: 0, medium: 1, low: 2 };
+  const actionable = state.hypotheses
+    .filter(h => h.status === 'needs_test' || h.status === 'watching')
+    .sort((a, b) => URGENCY_ORDER[a.urgency] - URGENCY_ORDER[b.urgency]);
+
   const isEmpty = state.events.length === 0 && state.hypotheses.length === 0;
 
   return (
@@ -145,6 +160,32 @@ function DashboardView({ state, onLoadSample, onNavigate }: DashboardProps) {
         </div>
       ) : (
         <>
+          {actionable.length > 0 && (
+            <article className="card card-action">
+              <div className="card-header">
+                <p className="eyebrow">今やること</p>
+                <h3>検証が済んでいない仮説　{actionable.length} 件</h3>
+              </div>
+              <div className="stack">
+                {actionable.map(h => (
+                  <button
+                    key={h.id}
+                    className="action-row"
+                    onClick={() => onNavigate('backtest')}
+                  >
+                    <span className={`urgency-tag urgency-${h.urgency}`}>
+                      {URGENCY_TEXT[h.urgency]}
+                    </span>
+                    <span className="action-title">{h.title}</span>
+                  </button>
+                ))}
+              </div>
+              <p className="empty-note" style={{ margin: '12px 0 0' }}>
+                期限の近い順に並べています。タップすると検証タブへ移動します。
+              </p>
+            </article>
+          )}
+
           <div className="stat-grid">
             <div className="stat-card stat-total">
               <div className="stat-value">{total}</div>
@@ -152,15 +193,15 @@ function DashboardView({ state, onLoadSample, onNavigate }: DashboardProps) {
             </div>
             <div className="stat-card stat-adopted">
               <div className="stat-value">{adopted}</div>
-              <p className="stat-label">✓ 採用</p>
+              <p className="stat-label">採用</p>
             </div>
             <div className="stat-card stat-watching">
               <div className="stat-value">{watching}</div>
-              <p className="stat-label">👁 様子見</p>
+              <p className="stat-label">様子見</p>
             </div>
             <div className="stat-card stat-needs-test">
               <div className="stat-value">{needsTest}</div>
-              <p className="stat-label">🧪 要検証</p>
+              <p className="stat-label">要検証</p>
             </div>
           </div>
 
@@ -208,7 +249,7 @@ function DashboardView({ state, onLoadSample, onNavigate }: DashboardProps) {
               {state.hypotheses.map(h => (
                 <div className="list-item" key={h.id}>
                   <span className={`status-pill status-${h.status}`}>
-                    {{ adopted: '✓ 採用', watching: '👁 様子見', rejected: '✕ 棄却', needs_test: '🧪 要検証' }[h.status]}
+                    {STATUS_TEXT[h.status]}
                   </span>
                   <h4>{h.title}</h4>
                   <p>{h.associationSteps[0]?.label} → … → {h.associationSteps[h.associationSteps.length - 1]?.label}</p>
@@ -271,17 +312,17 @@ type FilterUrgency = HypothesisUrgency | 'all';
 
 const FILTER_STATUS_OPTS: { value: FilterStatus; label: string }[] = [
   { value: 'all', label: '全て' },
-  { value: 'needs_test', label: '🧪 要検証' },
-  { value: 'adopted', label: '✓ 採用' },
-  { value: 'watching', label: '👁 様子見' },
-  { value: 'rejected', label: '✕ 棄却' },
+  { value: 'needs_test', label: '要検証' },
+  { value: 'adopted', label: '採用' },
+  { value: 'watching', label: '様子見' },
+  { value: 'rejected', label: '棄却' },
 ];
 
 const FILTER_URGENCY_OPTS: { value: FilterUrgency; label: string }[] = [
   { value: 'all', label: '全期間' },
-  { value: 'high', label: '🔴 今週中' },
-  { value: 'medium', label: '🟡 今月中' },
-  { value: 'low', label: '🔵 長期' },
+  { value: 'high', label: '今週中' },
+  { value: 'medium', label: '今月中' },
+  { value: 'low', label: '長期' },
 ];
 
 type TreeProps = {
@@ -319,7 +360,7 @@ function AssociationTreeView({ state, onAdd, onStatusChange, onDelete, canExecut
           {showForm ? '閉じる' : '＋ 仮説を追加'}
         </button>
         <button className="btn btn-ghost" onClick={() => setShowTree(v => !v)}>
-          {showTree ? 'ツリーを閉じる' : '🌲 ツリー表示'}
+          {showTree ? 'ツリーを閉じる' : 'ツリー表示'}
         </button>
       </div>
       {showForm && <HypothesisForm events={state.events} onAdd={handleAdd} />}
@@ -432,6 +473,7 @@ const pct = (n: number) => `${(n * 100).toFixed(1)}%`;
 
 type BacktestProps = {
   hypotheses: Hypothesis[];
+  events: MarketEvent[];
   jq: ReturnType<typeof useJquants>;
 };
 
@@ -443,39 +485,83 @@ const shiftDays = (dateStr: string, days: number): string => {
   return d.toISOString().slice(0, 10);
 };
 
-function BacktestView({ hypotheses, jq }: BacktestProps) {
-  const [priceText, setPriceText] = useState('');
-  const [eventText, setEventText] = useState('');
-  const [fetchedPrices, setFetchedPrices] = useState<PriceRow[] | null>(null);
+type PlannedRow = BacktestEventRow & { label: string };
+
+// 仮説そのものが検証の入力になる。手でCSVを書き起こす工程は、写し間違いを
+// 生むだけで何の判断も含まない。
+const planRows = (
+  hypothesis: Hypothesis,
+  events: MarketEvent[],
+): { rows: PlannedRow[]; skipReason: string | null } => {
+  const event = events.find(e => e.id === hypothesis.eventId);
+  if (!event) return { rows: [], skipReason: '起点イベントが未登録' };
+  const eventDate = event.occurredAt.slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(eventDate)) return { rows: [], skipReason: 'イベント日が不正' };
+  if (hypothesis.candidateStocks.length === 0) return { rows: [], skipReason: '銘柄候補が未登録' };
+
+  const rows: PlannedRow[] = [];
+  for (const stock of hypothesis.candidateStocks) {
+    const code = normalizeCode(stock);
+    if (!code) continue;
+    rows.push({
+      hypothesisId: hypothesis.id,
+      eventDate,
+      ticker: code,
+      notes: stock,
+      label: stock,
+    });
+  }
+  return rows.length > 0
+    ? { rows, skipReason: null }
+    : { rows: [], skipReason: '銘柄コードを読み取れない' };
+};
+
+function BacktestView({ hypotheses, events, jq }: BacktestProps) {
+  const [selected, setSelected] = useState<string[]>([]);
   const [results, setResults] = useState<BacktestResult[]>([]);
   const [summary, setSummary] = useState<BacktestSummary[]>([]);
   const [error, setError] = useState('');
+  const [showCsv, setShowCsv] = useState(false);
+  const [priceText, setPriceText] = useState('');
+  const [eventText, setEventText] = useState('');
 
-  // イベントCSVの銘柄と日付から取得範囲を決める。手でCSVを集める工程を省く。
-  const handleFetchPrices = async () => {
-    const eventRows = parseEventCsv(eventText);
-    if (eventRows.length === 0) { setError('先にイベントCSVを入力してください'); return; }
+  const plans = hypotheses.map(h => ({ hypothesis: h, ...planRows(h, events) }));
+  const runnable = plans.filter(p => p.skipReason === null);
+  const chosen = runnable.filter(p => selected.includes(p.hypothesis.id));
+  const plannedRows = chosen.flatMap(p => p.rows);
+
+  // コードだけでは何の銘柄か分からない。表示用に元の "6857 アドバンテスト" を引く
+  const labelOf = new Map(plannedRows.map(r => [r.ticker, r.label]));
+
+  const toggle = (id: string) =>
+    setSelected(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+
+  const show = (priceRows: PriceRow[], eventRows: BacktestEventRow[]) => {
+    const res = runBacktest(priceRows, eventRows);
+    setResults(res);
+    setSummary(summarizeBacktest(res));
+  };
+
+  const handleRunSelected = async () => {
+    if (plannedRows.length === 0) { setError('検証する仮説を選んでください'); return; }
     setError('');
-
-    const dates = eventRows.map(r => r.eventDate).sort();
-    const rows = await jq.fetchPrices(
-      eventRows.map(r => r.ticker),
+    const dates = plannedRows.map(r => r.eventDate).sort();
+    const priceRows = await jq.fetchPrices(
+      plannedRows.map(r => r.ticker),
       shiftDays(dates[0], -14),
       shiftDays(dates[dates.length - 1], 40),
     );
-    setFetchedPrices(rows.length > 0 ? rows : null);
+    if (priceRows.length === 0) return; // 失敗理由は jq.message が持っている
+    show(priceRows, plannedRows);
   };
 
-  const handleRun = () => {
+  const handleRunCsv = () => {
     try {
-      // J-Quants から取得済みならそれを使う。無ければ手入力CSVにフォールバック。
-      const priceRows = fetchedPrices ?? parsePriceCsv(priceText);
+      const priceRows = parsePriceCsv(priceText);
       const eventRows = parseEventCsv(eventText);
-      if (priceRows.length === 0) { setError('価格データがありません（J-Quantsで取得するかCSVを入力してください）'); return; }
+      if (priceRows.length === 0) { setError('価格CSVが空または不正です'); return; }
       if (eventRows.length === 0) { setError('イベントCSVが空または不正です'); return; }
-      const res = runBacktest(priceRows, eventRows);
-      setResults(res);
-      setSummary(summarizeBacktest(res));
+      show(priceRows, eventRows);
       setError('');
     } catch (e) {
       setError(`解析エラー: ${e instanceof Error ? e.message : String(e)}`);
@@ -491,95 +577,117 @@ function BacktestView({ hypotheses, jq }: BacktestProps) {
 
       <article className="card">
         <div className="card-header">
-          <p className="eyebrow">CSV フォーマット</p>
-          <h3>入力形式</h3>
+          <p className="eyebrow">手順1</p>
+          <h3>検証する仮説を選ぶ</h3>
         </div>
-        <div className="grid two-columns">
-          <div>
-            <p className="eyebrow">価格データ CSV</p>
-            <pre className="csv-sample">{PRICE_CSV_SAMPLE}</pre>
-          </div>
-          <div>
-            <p className="eyebrow">イベント CSV</p>
-            <pre className="csv-sample">{EVENT_CSV_SAMPLE}</pre>
-            <p style={{ fontSize: 13, color: 'var(--text-2)', marginTop: 8 }}>
-              hypothesis_id は登録済み仮説ID、または任意の文字列
-            </p>
-          </div>
-        </div>
-        {hypotheses.length > 0 && (
-          <div style={{ marginTop: 14 }}>
-            <p className="eyebrow">登録済み仮説 ID</p>
-            <div className="template-chips" style={{ marginTop: 6 }}>
-              {hypotheses.map(h => (
-                <span key={h.id} className="template-chip-btn" style={{ cursor: 'default' }}>{h.id}</span>
-              ))}
-            </div>
+
+        {plans.length === 0 && (
+          <p className="empty-note">まだ仮説がありません。「仮説」タブで登録してください。</p>
+        )}
+
+        {plans.map(({ hypothesis: h, rows, skipReason }) => (
+          <label
+            key={h.id}
+            className={`pick-row${skipReason ? ' is-disabled' : ''}`}
+          >
+            <input
+              type="checkbox"
+              checked={selected.includes(h.id)}
+              disabled={skipReason !== null}
+              onChange={() => toggle(h.id)}
+            />
+            <span className="pick-body">
+              <span className="pick-title">{h.title}</span>
+              <span className="pick-meta">
+                {skipReason
+                  ? `検証できません — ${skipReason}`
+                  : `${rows[0].eventDate}　${rows.length}銘柄`}
+              </span>
+            </span>
+          </label>
+        ))}
+
+        {runnable.length > 0 && (
+          <div className="pick-actions">
+            <button
+              className="btn btn-ghost"
+              onClick={() => setSelected(
+                selected.length === runnable.length ? [] : runnable.map(p => p.hypothesis.id),
+              )}
+            >
+              {selected.length === runnable.length ? '選択を解除' : 'すべて選ぶ'}
+            </button>
           </div>
         )}
       </article>
 
       <article className="card">
         <div className="card-header">
-          <p className="eyebrow">株価データ</p>
-          <h3>J-Quants から自動取得</h3>
+          <p className="eyebrow">手順2</p>
+          <h3>株価を取得して検証する</h3>
         </div>
-        {jq.apiKey ? (
+
+        {error && <p className="form-error">{error}</p>}
+
+        {!jq.apiKey ? (
+          <p className="empty-note">
+            設定タブでJ-QuantsのAPIキーを登録すると、株価を自動取得して検証できます。
+          </p>
+        ) : (
           <>
-            <p style={{ color: 'var(--text-2)', marginBottom: 12 }}>
-              イベントCSVの銘柄コードと日付から取得範囲を決め、株価を自動で取り込みます。
+            <p className="run-summary">
+              {plannedRows.length > 0
+                ? `${chosen.length}件の仮説 / ${new Set(plannedRows.map(r => r.ticker)).size}銘柄を検証します`
+                : '上で仮説を選んでください'}
             </p>
             <button
               className="btn btn-primary"
-              onClick={handleFetchPrices}
-              disabled={jq.status === 'loading'}
+              onClick={handleRunSelected}
+              disabled={plannedRows.length === 0 || jq.status === 'loading'}
             >
-              {jq.status === 'loading' ? '取得中…' : '↓ 株価を取得'}
+              {jq.status === 'loading' ? '取得中…' : '株価を取得して検証'}
             </button>
             {jq.message && (
-              <p style={{ marginTop: 10, color: jq.status === 'error' ? 'var(--danger, #dc2626)' : 'var(--text-2)' }}>
+              <p className={jq.status === 'error' ? 'run-note is-error' : 'run-note'}>
                 {jq.message}
               </p>
             )}
-            {fetchedPrices && (
-              <p style={{ marginTop: 6, color: 'var(--text-2)' }}>
-                取得済みの株価を使用します（下のCSVは使いません）。
-                <button className="btn btn-ghost" style={{ marginLeft: 8 }} onClick={() => setFetchedPrices(null)}>
-                  破棄してCSVを使う
-                </button>
-              </p>
-            )}
           </>
-        ) : (
-          <p style={{ color: 'var(--text-2)', margin: 0 }}>
-            設定画面でJ-QuantsのAPIキーを登録すると、株価を自動取得できます。
-          </p>
         )}
-      </article>
 
-      <article className="card">
-        <div className="card-header"><p className="eyebrow">CSV 入力</p></div>
-        {error && <p className="form-error">{error}</p>}
-        <div className="grid two-columns">
-          <div className="form-group">
-            <label>価格データ CSV</label>
-            <textarea rows={8} placeholder={PRICE_CSV_SAMPLE} value={priceText} onChange={e => setPriceText(e.target.value)} />
+        <button className="link-toggle" onClick={() => setShowCsv(v => !v)}>
+          {showCsv ? '手入力CSVを閉じる' : 'CSVを手で入力する'}
+        </button>
+
+        {showCsv && (
+          <div className="csv-panel">
+            <p className="empty-note">
+              J-Quantsを使わずに検証する場合の入力欄です。1行目は見出しとして読み飛ばします。
+            </p>
+            <div className="form-group">
+              <label>価格データ CSV</label>
+              <textarea rows={6} placeholder={PRICE_CSV_SAMPLE} value={priceText} onChange={e => setPriceText(e.target.value)} />
+            </div>
+            <div className="form-group">
+              <label>イベント CSV</label>
+              <textarea rows={6} placeholder={EVENT_CSV_SAMPLE} value={eventText} onChange={e => setEventText(e.target.value)} />
+            </div>
+            <button className="btn btn-ghost" onClick={handleRunCsv}>CSVで検証</button>
           </div>
-          <div className="form-group">
-            <label>イベント CSV</label>
-            <textarea rows={8} placeholder={EVENT_CSV_SAMPLE} value={eventText} onChange={e => setEventText(e.target.value)} />
-          </div>
-        </div>
-        <button className="btn btn-primary" onClick={handleRun}>バックテスト実行</button>
+        )}
       </article>
 
       {results.length > 0 && (
         <>
           <article className="card">
             <div className="card-header">
-              <p className="eyebrow">銘柄別サマリー</p>
-              <h3>勝率・平均リターン・標準偏差</h3>
+              <p className="eyebrow">結果</p>
+              <h3>銘柄別サマリー</h3>
             </div>
+            <p className="empty-note">
+              勝率はイベント当日の終値を起点に、T+1／T+3／T+5営業日でプラスだった割合です。
+              件数は「実測できた数 / 予定した数」。σは標本標準偏差で、大きいほどばらつきが大きい。
+            </p>
             <div className="bt-table-wrap">
               <table className="bt-table">
                 <thead>
@@ -594,10 +702,10 @@ function BacktestView({ hypotheses, jq }: BacktestProps) {
                 <tbody>
                   {summary.map((s: BacktestSummary) => (
                     <tr key={s.ticker}>
-                      <td><strong>{s.ticker}</strong></td>
+                      <td><strong>{labelOf.get(s.ticker) ?? s.ticker}</strong></td>
                       <td>
                         {s.measuredCount}/{s.count}
-                        {s.sampleWarning && <span title="実測できたサンプルが5件未満" style={{ marginLeft: 4, color: '#d97706' }}>⚠</span>}
+                        {s.sampleWarning && <span className="warn-mark" title="実測できたサンプルが5件未満。偶然と区別できません">!</span>}
                       </td>
                       <td className={s.winRate1 >= 0.5 ? 'ret-pos' : 'ret-neg'}>{pct(s.winRate1)}</td>
                       <td className={s.winRate3 >= 0.5 ? 'ret-pos' : 'ret-neg'}>{pct(s.winRate3)}</td>
@@ -617,24 +725,27 @@ function BacktestView({ hypotheses, jq }: BacktestProps) {
           </article>
 
           <article className="card">
-            <div className="card-header"><p className="eyebrow">詳細結果</p></div>
+            <div className="card-header">
+              <p className="eyebrow">結果</p>
+              <h3>個別の値動き</h3>
+            </div>
             <div className="bt-table-wrap">
               <table className="bt-table">
                 <thead>
                   <tr>
-                    <th>仮説 ID</th><th>イベント日</th><th>起点営業日</th><th>銘柄</th>
-                    <th>T+1</th><th>T+3</th><th>T+5</th><th>備考</th>
+                    <th>仮説</th><th>イベント日</th><th>起点営業日</th><th>銘柄</th>
+                    <th>T+1</th><th>T+3</th><th>T+5</th>
                   </tr>
                 </thead>
                 <tbody>
                   {results.map((r, i) => (
                     <tr key={i}>
-                      <td style={{ fontSize: 12 }}>{r.hypothesisId}</td>
+                      <td className="cell-id">{r.hypothesisId}</td>
                       <td>{r.eventDate}</td>
                       <td className={r.baseDate === r.eventDate ? '' : 'ret-neg'}>
                         {r.baseDate ?? '—'}
                       </td>
-                      <td>{r.ticker}</td>
+                      <td>{r.notes || r.ticker}</td>
                       <td className={r.t1Return == null ? '' : r.t1Return >= 0 ? 'ret-pos' : 'ret-neg'}>
                         {r.t1Return == null ? '—' : pct(r.t1Return)}
                       </td>
@@ -644,12 +755,14 @@ function BacktestView({ hypotheses, jq }: BacktestProps) {
                       <td className={r.t5Return == null ? '' : r.t5Return >= 0 ? 'ret-pos' : 'ret-neg'}>
                         {r.t5Return == null ? '—' : pct(r.t5Return)}
                       </td>
-                      <td style={{ fontSize: 12, color: 'var(--text-2)' }}>{r.notes}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
+            <p className="empty-note">
+              起点営業日がイベント日と違う行は、イベント日が休場だったため翌営業日を起点にしています。
+            </p>
           </article>
         </>
       )}
@@ -774,9 +887,9 @@ function SettingsView({ settings, usage, onUpdate, onExport, onImport, jq }: Set
           データは localStorage に保存されています。JSONファイルでバックアップ・移行できます。
         </p>
         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
-          <button className="btn btn-primary" onClick={onExport}>⬇ JSONエクスポート</button>
+          <button className="btn btn-primary" onClick={onExport}>JSONエクスポート</button>
           <label className="btn btn-ghost" style={{ cursor: 'pointer' }}>
-            ⬆ JSONインポート
+            JSONインポート
             <input
               type="file"
               accept=".json"
@@ -917,7 +1030,7 @@ export default function App() {
             {...aiProps}
           />
         )}
-        {view === 'backtest' && <BacktestView hypotheses={state.hypotheses} jq={jq} />}
+        {view === 'backtest' && <BacktestView hypotheses={state.hypotheses} events={state.events} jq={jq} />}
         {view === 'settings' && (
           <SettingsView
             settings={settings}
