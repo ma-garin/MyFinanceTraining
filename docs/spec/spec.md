@@ -1,0 +1,439 @@
+# MyFinanceTraining 仕様書（As-Built Spec）
+
+- 基準コミット: `8f6ab6e`（2026-11-01 時点の main）
+- 位置づけ: **現行コードから逆起こしした仕様の真実源**。AIDD の各工程はまずこのファイルを読み、コード全体の再スキャンをしない
+- 対象範囲: `src/` 全体・`public/`・`vite.config.ts`・`package.json`・`.github/workflows/deploy.yml`・`docs/*.md`
+
+---
+
+## 0. このファイルの使い方（AIDD 運用ルール）
+
+| 場面 | やること |
+|---|---|
+| 新しいセッションを始める | 本ファイルの §1〜§3 を読む。コードは §2 のファイル地図で対象を特定してから、そのファイルだけ読む |
+| 機能を追加・変更する | 該当する FR-ID の節を読む → 実装 → **同じ PR で本ファイルの該当節と §10（変更履歴）を更新** |
+| 不具合を直す | §9 の既知不具合 ID（BUG-xx）を参照。直したら §9 から削除し §10 に記録 |
+| 設計ドキュメント（`docs/*.md`）と食い違う | **本ファイルが現状、`docs/*.md` は構想**。差分は §8 に一覧 |
+| 基準コミットとずれた | `git diff 8f6ab6e --stat -- src public` で変更ファイルを確認し、その節だけ更新して基準コミットを書き換える |
+
+更新の判定基準: `src/domain/types.ts`・`src/hooks/*`・`src/infrastructure/*`・`src/engine/*`・`src/services/*` を変更したら必ず本ファイルを更新する。CSS だけの変更は §6 の画面仕様に影響が出たときだけ更新する。
+
+---
+
+## 1. プロダクト概要
+
+| 項目 | 内容 |
+|---|---|
+| 名称 | MyFinanceTraining（画面表示名「投資仮説OS」、PWA short_name「FinanceOS」） |
+| 一文定義 | 世界のニュース・市場イベントを起点に 3〜5 段階の連想ツリーを作り、日本株/ETF/ETN の投資仮説を管理・検証する個人向けツール |
+| 利用者 | 開発者本人 1 名（個人利用。認証なし・サーバなし） |
+| 対象市場（出力） | 日本株・東証 ETF/ETN・J-REIT |
+| 入力情報 | 米国指標・金利・為替・商品・地政学・決算などの世界のイベント |
+| しないこと | 投資助言・売買の自動執行・リアルタイム株価取得・常時 AI 呼び出し |
+
+### 1.1 中核フロー
+
+```
+ニュース(MarketEvent)
+  → ルールベース連想（テンプレート照合）／手入力
+  → 連想ステップ 1〜5（AssociationStep）
+  → 仮説（Hypothesis: 方向性・テーマ・候補銘柄・失敗条件・緊急度）
+  → 任意: AI 深掘り（プロンプトをコピー → 外部 AI → 結果を貼り付けて取り込み）
+  → 検証: 検証ログ（的中/外れ/様子見）・CSV バックテスト（T+1/3/5）
+  → ステータス判定（採用 / 様子見 / 棄却 / 要検証）
+```
+
+### 1.2 設計原則（コードで守られている事項）
+
+1. **AI は常時使わない**: AI 連携は API 呼び出しをせず、プロンプトのコピー＆貼り付けのみ（APIキー不要）
+2. **不変更新**: state は `setState(prev => ({...prev, ...}))` で新しいオブジェクトを作る
+3. **保存層の抽象化**: 永続化は `src/infrastructure/` を経由する
+4. **投資助言文言を避ける**: 「仮説」「検証」「失敗条件」「判断補助」を使う。AI プロンプトにも「投資助言・売買推奨は含めない」を明記
+5. **スマホ幅対応**: モバイルヘッダー＋ボトムナビ、デスクトップはサイドバー
+
+---
+
+## 2. 技術構成とファイル地図
+
+### 2.1 スタック
+
+| 領域 | 採用 | 備考 |
+|---|---|---|
+| UI | React（`latest` 指定）＋ TypeScript strict | `src/main.tsx` で StrictMode |
+| ビルド | Vite（`base: '/MyFinanceTraining/'`） | `npm run build` = `tsc && vite build` |
+| 状態 | `useState` ＋ カスタムフック | 外部状態ライブラリなし |
+| 永続化 | localStorage（300ms デバウンス保存） | IndexedDB は未導入 |
+| PWA | 手書き `public/sw.js`＋`manifest.webmanifest` | vite-plugin-pwa は未使用 |
+| スタイル | 素の CSS（`styles.css` 1015 行＋`styles-extra.css` 429 行） | `data-theme` でライト/ダーク |
+| デプロイ | GitHub Actions → GitHub Pages（main への push で自動） | Node 20 |
+| テスト・lint | **なし**（テストフレームワーク・ESLint 未導入） | |
+
+### 2.2 ファイル地図（行数は基準コミット時点）
+
+| ファイル | 行 | 責務 | 関連 FR |
+|---|---|---|---|
+| `src/main.tsx` | 19 | ルート描画・SW 登録 | NFR-PWA |
+| `src/App.tsx` | 818 | 全ビュー（6 画面）・ナビ・トースト・テーマ・ハンドラ配線 | 全 FR |
+| `src/domain/types.ts` | 131 | ドメイン型定義 | §3 |
+| `src/hooks/useStore.ts` | 103 | AppState の CRUD と自動保存 | FR-EV, FR-HY, FR-VL, FR-AI |
+| `src/hooks/useAiSettings.ts` | 40 | AI 上限設定・使用回数 | FR-AI |
+| `src/hooks/useToast.ts` | 23 | トースト通知（取り消し付き） | FR-HY-04 |
+| `src/infrastructure/storage.ts` | 73 | AppState の load/save・検証・JSON 入出力 | FR-DM |
+| `src/infrastructure/aiStorage.ts` | 53 | AI 設定・使用回数・キャッシュの保存 | FR-AI |
+| `src/engine/rules.ts` | 255 | 連想テンプレート 15 件（静的データ） | FR-RB |
+| `src/engine/associationEngine.ts` | 38 | テンプレートのスコアリングと適用 | FR-RB |
+| `src/services/aiService.ts` | 74 | AI プロンプト生成・貼り付け結果の解析 | FR-AI |
+| `src/services/csvParser.ts` | 47 | 価格/イベント CSV の解析・サンプル | FR-BT |
+| `src/services/backtestEngine.ts` | 117 | T+n リターン計算・銘柄別サマリー | FR-BT |
+| `src/utils/dateUtils.ts` | 10 | ローカル時刻の `YYYY-MM-DD` / `YYYY-MM` | 共通 |
+| `src/data/sampleData.ts` | 108 | 初期データ（イベント 2・仮説 2・テーマ 6） | FR-DM-04 |
+| `src/components/EventForm.tsx` | 105 | イベント追加フォーム | FR-EV |
+| `src/components/HypothesisForm.tsx` | 251 | 仮説追加フォーム（テンプレート提案付き） | FR-HY, FR-RB |
+| `src/components/HypothesisCard.tsx` | 259 | 仮説カード（表示・ステータス・削除・検証ログ・AI） | FR-HY, FR-VL, FR-AI |
+| `src/components/AiDeepDive.tsx` | 116 | AI 深掘りパネル | FR-AI |
+| `src/components/EventTree.tsx` | 136 | イベント→仮説のツリー表示 | FR-TR |
+| `public/sw.js` | — | Service Worker（Stale-While-Revalidate） | NFR-PWA |
+
+### 2.3 依存方向
+
+```
+components / App.tsx
+   ↓
+hooks (useStore, useAiSettings, useToast)
+   ↓
+infrastructure (storage, aiStorage)   engine (associationEngine → rules)   services (aiService, csvParser, backtestEngine)
+   ↓                                     ↓                                   ↓
+domain/types.ts ←──────────────── 全層が参照（domain は何にも依存しない）
+```
+
+例外: `AiDeepDive.tsx` は `infrastructure/aiStorage` を直接呼ぶ（キャッシュ読み書き）。`App.tsx` は `infrastructure/storage` の JSON 入出力を直接呼ぶ。
+
+---
+
+## 3. データモデル（`src/domain/types.ts`）
+
+### 3.1 列挙型
+
+| 型 | 値 | 表示ラベル |
+|---|---|---|
+| `EventCategory` | `geopolitics` / `macro` / `commodity` / `semiconductor` / `currency` / `consumer` / `other` | 地政学 / マクロ（フォームでは「マクロ経済」）/ コモディティ / 半導体 / 為替 / 消費者 / その他 |
+| `Direction` | `up` / `down` / `mixed` / `watch` | ↑ 上昇 / ↓ 下落 / ↔ 混在 / ? 様子見 |
+| `HypothesisStatus` | `adopted` / `watching` / `rejected` / `needs_test` | 採用 / 様子見 / 棄却 / 要検証 |
+| `HypothesisUrgency` | `high` / `medium` / `low` | 🔴 今週中 / 🟡 今月中 / 🔵 長期（フォームでは「長期観察」） |
+| `VerificationLogResult` | `hit` / `miss` / `pending` | ✓ 的中 / ✕ 外れ / ⏳ 様子見 |
+| `AiPromptType` | `association_expand` / `counter_scenario` | 連想を深掘り / 失敗条件を追加 |
+
+### 3.2 エンティティ
+
+```ts
+MarketEvent {
+  id: string            // 新規は `EVT-${Date.now()}`、サンプルは `event-001`
+  title: string         // 必須
+  category: EventCategory
+  occurredAt: string    // YYYY-MM-DD
+  summary: string       // 必須
+}
+
+AssociationStep {
+  depth: 1|2|3|4|5      // 入力欄の位置（空欄を詰めても depth は詰めない → 欠番あり得る）
+  label: string
+  reason: string        // 空文字可
+}
+
+Hypothesis {
+  id: string                       // 新規は `HYP-${Date.now()}`、サンプルは命名規則形式
+  title: string                    // 必須
+  eventId: string                  // 紐づくイベント ID。未選択・削除済みは ''
+  expectedDirection: Direction
+  targetThemes: string[]           // 自由文字列（TargetTheme.id とは非連携）
+  candidateStocks: string[]        // "6857 アドバンテスト" 形式の自由文字列
+  urgency: HypothesisUrgency
+  associationSteps: AssociationStep[]   // 1〜5 件
+  invalidationConditions: string[]      // 失敗条件
+  status: HypothesisStatus              // 新規は常に 'needs_test'
+  verificationLogs?: VerificationLog[]
+  invalidationRules?: InvalidationRule[] // 型のみ定義。UI・ロジックとも未使用
+}
+
+VerificationLog { id: `log-${Date.now()}`, loggedAt: YYYY-MM-DD, result, note }
+
+InvalidationRule { condition: string, threshold?: { metric, operator: '>'|'<'|'>='|'<=', value: number } }  // 未使用
+
+TargetTheme { id, name, description, examples[], positiveDrivers[], negativeDrivers[] }  // 編集 UI なし（読み取り専用）
+
+AppState { version?: number /* 未使用 */, events[], hypotheses[], themes[] }
+```
+
+### 3.3 AI・バックテスト用の型
+
+```ts
+AiSettings     { dailyLimit: number, monthlyLimit: number }          // 既定 5 / 50
+AiUsageRecord  { date: YYYY-MM-DD, month: YYYY-MM, dailyCount, monthlyCount }
+AiCacheEntry   { key: `${hypothesisId}:${promptType}`, prompt, result, createdAt: ISO }
+
+PriceRow         { date, ticker, close }
+BacktestEventRow { hypothesisId, eventDate, ticker, notes }
+BacktestResult   { hypothesisId, eventDate, ticker, notes, t1Return|null, t3Return|null, t5Return|null }
+BacktestSummary  { ticker, count, winRate1/3/5, avgReturn1/3/5, stdDev1/3/5, maxDrawdown, sampleWarning }  // backtestEngine.ts で定義
+```
+
+### 3.4 関連と参照整合性
+
+- `Hypothesis.eventId → MarketEvent.id`（0..1）。イベント削除時・読み込み時に存在しない参照は `''` に置き換える（`sanitizeState`）
+- `BacktestEventRow.hypothesisId` は仮説 ID と**照合しない**（任意文字列可）
+- `targetThemes` と `TargetTheme` は**名前でも ID でも連携しない**
+
+---
+
+## 4. 永続化仕様
+
+### 4.1 localStorage キー
+
+| キー | 内容 | 読み書き |
+|---|---|---|
+| `myfinancetraining_v1` | `AppState`（JSON） | `storage.ts` |
+| `mft_ai_settings` | `AiSettings` | `aiStorage.ts` |
+| `mft_ai_usage` | `AiUsageRecord` | `aiStorage.ts` |
+| `mft_ai_cache` | `AiCacheEntry[]`（上限なし・同一 key は上書き） | `aiStorage.ts` |
+| `theme` | `'light'` / `'dark'` | `App.tsx` |
+
+### 4.2 読み込み（`loadState`）
+
+1. キーが無い → `null` → `useStore` が `initialState`（サンプルデータ）で開始
+2. JSON 解析失敗 → `null`（サンプルで開始。**既存データは上書きされ得る**: 次の保存で置き換わる）
+3. `isValidState`: `events` / `hypotheses` / `themes` が配列であることだけを検査（要素の形は検査しない）
+4. `sanitizeState`: 存在しない `eventId` を `''` に置換
+
+### 4.3 保存（`saveState`）
+
+- `state` が変わるたびに 300ms デバウンスで保存（`useStore` の `useEffect`）
+- 失敗時は `console.error` と `false` を返すが、**呼び出し側は戻り値を使わず利用者に通知しない**（BUG-07）
+
+### 4.4 JSON エクスポート / インポート（FR-DM-02, 03）
+
+- エクスポート: `myfinancetraining-YYYY-MM-DD.json`（UTC 日付）を整形 JSON でダウンロード
+- インポート: `isValidState` → `sanitizeState` → `replaceState` で**全置換**（確認ダイアログなし・マージなし）
+- エラー文: 「無効なファイル形式です」「JSONの解析に失敗しました」をトースト「インポートエラー: …」で表示
+- AI 設定・使用回数・キャッシュ・テーマ設定はエクスポート対象外
+
+---
+
+## 5. 機能要件（FR）
+
+ID は本ファイル内で採番。`docs/requirements.md` の番号との対応は §8。
+
+### FR-EV イベント管理（`EventForm.tsx`・`App.tsx#EventInputView`）
+
+| ID | 仕様 |
+|---|---|
+| FR-EV-01 | タイトル・カテゴリ（既定 地政学）・発生日（既定 今日）・概要を入力して追加できる |
+| FR-EV-02 | 検証: タイトル空 →「タイトルを入力してください」、概要空 →「概要を入力してください」。前後空白は除去して保存 |
+| FR-EV-03 | 追加後フォームは初期化。登録済み一覧は**新しい順**に表示、件数を表示 |
+| FR-EV-04 | 削除は 2 段階（削除 → キャンセル/削除確定）。削除すると紐づく仮説の `eventId` を `''` にする（仮説は残る）。トースト「イベントを削除しました」（取り消しなし） |
+| FR-EV-05 | 0 件時「まだイベントがありません」 |
+
+### FR-HY 仮説管理（`HypothesisForm.tsx`・`HypothesisCard.tsx`・`App.tsx#AssociationTreeView / HypothesisDetailView`）
+
+| ID | 仕様 |
+|---|---|
+| FR-HY-01 | 入力項目: タイトル*・起点イベント（任意、選択肢は登録イベント）・方向性（既定 上昇）・緊急度（既定 今月中）・連想ステップ 5 行（ラベル＋理由）・対象テーマ（`,` または `、` 区切り）・候補銘柄（1 行 1 件）・失敗条件（1 行 1 件） |
+| FR-HY-02 | 検証: タイトル空 →「仮説タイトルを入力してください」、ステップ 1 空 →「連想ステップ1を入力してください」。空ラベルのステップは除外（depth は入力行番号のまま） |
+| FR-HY-03 | 登録時のステータスは `needs_test`、ID は `HYP-${Date.now()}`。登録後フォームを閉じる |
+| FR-HY-04 | ステータスは 4 ボタンで変更。トースト「ステータスを「X」に変更しました」＋「取り消す」（3 秒、直前のステータスへ戻す） |
+| FR-HY-05 | 削除は 2 段階確認。トースト「仮説を削除しました」（取り消しなし）。詳細画面では削除後に別の仮説を自動選択 |
+| FR-HY-06 | 一覧（連想ツリー画面）は新しい順。フィルター: ステータス（全て/要検証/採用/様子見/棄却）× 緊急度（全期間/今週中/今月中/長期）。「n / 全件 件」を表示 |
+| FR-HY-07 | 0 件時: 全体 0 件なら「仮説がありません。「仮説を追加」から登録してください。」、フィルター結果 0 件なら「フィルター条件に一致する仮説がありません。」 |
+| FR-HY-08 | カード表示: ID・緊急度バッジ・タイトル・起点イベント（カテゴリバッジ付き）・ステータス・連想タイムライン・方向性・対象テーマ・候補銘柄チップ・失敗条件 |
+| FR-HY-09 | 詳細画面: ドロップダウンで 1 件を選び同じカードを表示。初期選択は先頭の仮説 |
+| FR-HY-10 | 仮説の**編集機能はない**（追加・ステータス変更・削除・AI 追記・検証ログ追加のみ） |
+
+### FR-RB ルールベース連想（`engine/`）
+
+| ID | 仕様 |
+|---|---|
+| FR-RB-01 | 仮説フォームで起点イベントを選ぶと、そのイベントに合うテンプレートを提案チップで表示 |
+| FR-RB-02 | スコア = カテゴリ一致 +2 ＋ キーワード 1 語一致ごとに +1（`title + summary` を小文字化して部分一致）。スコア > 0 を降順表示 |
+| FR-RB-03 | チップを押すと、連想ステップ 5 行・対象テーマ・候補銘柄・失敗条件を**上書き**で自動入力（タイトル・方向性・緊急度は変えない）。適用中のチップを強調 |
+| FR-RB-04 | 起点イベントを変えると適用中の強調を解除（入力済みの値は残る） |
+
+テンプレート一覧（`rules.ts`、15 件。各 5 ステップ・失敗条件 3 件）:
+
+| id | ラベル | カテゴリ |
+|---|---|---|
+| `mideast-conflict` | 中東情勢悪化 | geopolitics |
+| `oil-surge` | 原油急騰 | commodity |
+| `us-jobs-strong` | 米雇用統計上振れ | macro |
+| `sox-plunge` | SOX急落 | semiconductor |
+| `yen-weak` | 円安進行 | currency |
+| `yen-strong` | 円高・日銀利上げ | currency, macro |
+| `us-cpi` | 米CPI上昇（インフレ） | macro |
+| `fomc-rate-cut` | FOMC利下げ・ハト派転換 | macro |
+| `boj-policy-meeting` | 日銀政策決定会合（タカ派） | macro, currency |
+| `inbound-surge` | インバウンド需要急増 | consumer |
+| `china-economy-weak` | 中国経済指標悪化 | macro, geopolitics |
+| `defense-budget-hike` | 防衛費増額・安保政策強化 | geopolitics |
+| `yen-carry-unwind` | 円キャリー巻き戻し | currency, macro |
+| `earnings-surprise-up` | 好決算サプライズ | other（候補銘柄なし） |
+| `ai-demand-surge` | AI需要急拡大・DC投資増 | semiconductor |
+
+注意: カテゴリ一致だけで +2 になるため、`macro` のイベントは常に 6 件以上が提案される（キーワード無関係）。
+
+### FR-TR 連想ツリー表示（`EventTree.tsx`）
+
+| ID | 仕様 |
+|---|---|
+| FR-TR-01 | 「🌲 ツリー表示」で開閉。イベントごとに紐づく仮説をステータス色付きで並べる。仮説が無いイベントは「仮説なし」 |
+| FR-TR-02 | 仮説ノードを押すと連想ステップと失敗条件を展開（同時に 1 件だけ） |
+| FR-TR-03 | 存在しないイベントに紐づく仮説（`eventId=''` を含む）は「イベント未紐付け」にまとめる |
+| FR-TR-04 | イベント・仮説とも 0 件なら「イベントと仮説を登録するとツリーが表示されます」 |
+
+ステータス色: 採用 `#16a34a` / 様子見 `#d97706` / 棄却 `#dc2626` / 要検証 `#7c3aed`
+
+### FR-VL 検証ログ（`HypothesisCard.tsx`・`useStore.addVerificationLog`）
+
+| ID | 仕様 |
+|---|---|
+| FR-VL-01 | 「＋ 追加」で入力欄を開き、結果（的中/外れ/様子見、既定 様子見）とメモ（任意）を保存。日付は今日（ローカル時刻） |
+| FR-VL-02 | 保存済みログを追加順に表示。ログの編集・削除はできない |
+| FR-VL-03 | ログはステータスを自動で変えない |
+
+### FR-AI AI 深掘り（`AiDeepDive.tsx`・`aiService.ts`・`useAiSettings.ts`・`aiStorage.ts`）
+
+| ID | 仕様 |
+|---|---|
+| FR-AI-01 | 仮説カードの「AI 深掘り」でパネルを開く。種別は「連想を深掘り」「失敗条件を追加」の 2 つ |
+| FR-AI-02 | ① 種別に応じたプロンプトを生成して表示、「コピー」でクリップボードへ（1.5 秒「✓ コピー済み」）。② 外部 AI の出力を貼り付け、③「仮説に取り込む」 |
+| FR-AI-03 | プロンプト（連想）: 起点イベント（無ければ仮説タイトル）＋現在の連想ステップ → 3〜5 個の追加連想を `- 連想先: X / 理由: Y` 形式で出力させる |
+| FR-AI-04 | プロンプト（失敗条件）: 仮説タイトル＋連想ステップ＋既存失敗条件 → 仮説固有の失敗条件 3〜5 個を `- X` 形式で出力させる |
+| FR-AI-05 | 解析（連想）: `-` または `数字.` で始まる行を対象。`連想先[：:]X[/／]理由[：:]Y` に合えば分解、合わなければ行全体をラベル・理由空 |
+| FR-AI-06 | 解析（失敗条件）: `-`・`・`・`数字.` で始まる行の本文を失敗条件として追加 |
+| FR-AI-07 | 取り込み: 連想ステップは**合計 5 件を超えない範囲**で末尾に追加（depth は既存最大 +1 から、上限 5）。失敗条件は重複チェックなしで末尾に追加 |
+| FR-AI-08 | 取り込み時に貼り付け結果をキャッシュ（key = `仮説ID:種別`）し、使用回数を +1。キャッシュがあれば「キャッシュを読み込む（日付）」で貼り付け欄に復元 |
+| FR-AI-09 | 上限: 日次 `dailyLimit`・月次 `monthlyLimit` を超えたら「本日の実行上限に達しました。Settings で上限を変更できます。」を表示（**取り込みボタンは止まらない**: BUG-01） |
+| FR-AI-10 | 使用回数は日付・月が変わると 0 に戻る（ローカル時刻基準） |
+
+### FR-BT CSV バックテスト（`csvParser.ts`・`backtestEngine.ts`・`App.tsx#BacktestView`）
+
+| ID | 仕様 |
+|---|---|
+| FR-BT-01 | 価格 CSV（`date,ticker,close`）とイベント CSV（`hypothesis_id,event_date,ticker,notes`）をテキスト欄に貼り付けて実行。1 行目はヘッダーとして読み飛ばす（列名は検査しない） |
+| FR-BT-02 | 解析: ダブルクォート内のカンマを許容。日付は `YYYY-MM-DD` のみ。終値が数値でない・0 以下の行は捨てる。イベントの `notes` は省略可 |
+| FR-BT-03 | 有効行 0 件のとき「価格CSVが空または不正です」「イベントCSVが空または不正です」。例外時「解析エラー: …」 |
+| FR-BT-04 | リターン: 基準 = イベント日の終値。T+n = 土日を除く n 営業日後の終値 / 基準 − 1。該当日の価格が無ければ `null`（表示「—」）。祝日は考慮しない・直近営業日への繰り越しもしない |
+| FR-BT-05 | 銘柄別サマリー: 件数（5 未満で ⚠）・勝率（リターン > 0 の割合、null 除外）・平均・標準偏差（母標準偏差）・最大 DD（= T+5 リターンの最小値と 0 の小さい方） |
+| FR-BT-06 | 表示: サマリー表と詳細表（横スクロール）。正は `ret-pos`、負は `ret-neg`。勝率は 50% 以上を正色 |
+| FR-BT-07 | 結果は保存しない（画面遷移で消える）。登録済み仮説 ID を参照用チップとして表示 |
+
+### FR-DM データ管理・ダッシュボード・設定（`App.tsx`）
+
+| ID | 仕様 |
+|---|---|
+| FR-DM-01 | ダッシュボード: 仮説の合計・採用・様子見・要検証の件数、注目イベント一覧、テーマ一覧、仮説サマリー（先頭ステップ → … → 末尾ステップ） |
+| FR-DM-02 | 設定: JSON エクスポート（トースト「JSONをエクスポートしました」） |
+| FR-DM-03 | 設定: JSON インポート（成功「データをインポートしました」、失敗「インポートエラー: …」） |
+| FR-DM-04 | イベント・仮説が両方 0 件のとき、ダッシュボードに 3 ステップの案内と「サンプルを読み込む」「最初のイベントを追加する」を表示 |
+| FR-DM-05 | 設定: AI の日次上限（1〜100）・月次上限（1〜1000）を保存。数値でない・0 は既定（5/50）に戻す。本日・今月の使用回数を表示 |
+| FR-DM-06 | テーマ切替（ライト/ダーク）。保存値が無ければ OS 設定に従う |
+
+---
+
+## 6. 画面仕様
+
+### 6.1 ナビゲーション
+
+| view | デスクトップ表示 | モバイル表示 | アイコン |
+|---|---|---|---|
+| `dashboard` | ダッシュボード | ホーム | ◈ |
+| `event-input` | イベント | 入力 | ＋ |
+| `association-tree` | 連想ツリー | 仮説 | ⟿ |
+| `hypothesis-detail` | 仮説詳細 | 詳細 | ◉ |
+| `backtest` | バックテスト | テスト | ↗ |
+| `settings` | 設定 | 設定 | ⚙ |
+
+- 画面状態は `App` の `useState<View>` のみ（URL ルーティングなし・リロードでダッシュボードに戻る）
+- レイアウト: デスクトップはサイドバー（ブランド・ナビ・テーマ切替）、モバイルは上部ヘッダー（ブランド・テーマ切替）＋下部タブ 6 個
+- トースト: 画面下部に積み上げ、既定 3 秒、閉じる（×）と取り消す（任意）
+
+### 6.2 画面ごとの状態
+
+| 画面 | 通常 | 0 件 | エラー |
+|---|---|---|---|
+| ダッシュボード | 統計＋3 カード | 案内（FR-DM-04） | — |
+| イベント | フォーム＋一覧 | 「まだイベントがありません」 | 入力検証メッセージ |
+| 連想ツリー | ツールバー・フィルター・カード | FR-HY-07 | 入力検証メッセージ |
+| 仮説詳細 | 選択＋カード | 「仮説がありません」（選択肢） | — |
+| バックテスト | 書式・入力・結果表 | 結果なし | FR-BT-03 |
+| 設定 | AI 上限・データ管理・免責 | — | インポートエラーのトースト |
+
+---
+
+## 7. 非機能要件（現状）
+
+| ID | 項目 | 現状 |
+|---|---|---|
+| NFR-PWA | オフライン・ホーム画面追加 | `sw.js`（キャッシュ名 `my-finance-training-v2`）: install でルートと manifest を事前キャッシュ、同一オリジン GET を Stale-While-Revalidate。manifest は standalone・SVG アイコン 1 つ |
+| NFR-MOB | スマホ幅 | モバイルヘッダー＋ボトムナビ。表は横スクロール。最大幅 520px での確認が開発規約 |
+| NFR-SEC | 秘密情報 | APIキーを扱わない（AI は手動コピー）。外部通信なし |
+| NFR-PRIV | データの所在 | 端末の localStorage のみ。端末間同期なし |
+| NFR-TZ | 日付 | `dateUtils` はローカル時刻。ただしイベント既定日とエクスポート名は UTC（BUG-04） |
+| NFR-COST | AI 費用 | 0 円（API 未使用）。回数上限は自己管理用 |
+| NFR-QA | 品質保証 | 自動テストなし・lint なし・型検査は `tsc`（build 時） |
+| NFR-CODE | コーディング規約 | ファイル 800 行以下・関数 50 行以下・`any` 禁止・strict。**`App.tsx` が 818 行で超過** |
+| NFR-REPRO | 再現性 | 依存がすべて `latest` 指定。`package-lock.json` で固定されるが、`deploy.yml` は `npm install`（`npm ci` でない） |
+
+---
+
+## 8. 設計ドキュメント（`docs/*.md`）との差分
+
+`docs/` は構想段階の文書。実装と違う点を以下に固定する（どちらに寄せるかは未決定）。
+
+| 文書の記述 | 実装 | 出典 |
+|---|---|---|
+| IndexedDB で保存 | localStorage | architecture.md |
+| vite-plugin-pwa・Zustand/Context | 手書き SW・useState | architecture.md |
+| AI は Gemini/OpenAI API を任意設定 | API 呼び出しなし（コピペ方式） | architecture.md, ai-cost-control.md |
+| AI キャッシュ key = model+promptType+normalizedInput+templateVersion | `仮説ID:種別` | ai-cost-control.md |
+| AI 種別 5 つ（naming・missing_angle・theme_mapping を含む） | 2 つのみ | ai-cost-control.md |
+| Event に region・sourceUrl・memo、category は配列 | region なし・単一 category | hypothesis-model.md |
+| AssociationNode（parentId で分岐・direction・confidence） | 直線の steps 配列。分岐・確信度なし | hypothesis-model.md, requirements.md §2 |
+| Hypothesis に summary・targetMarket・triggerConditions・checkIndicators・createdAt/updatedAt | なし（urgency・candidateStocks・verificationLogs を追加） | hypothesis-model.md |
+| 仮説 ID 命名規則 `<REGION>-<EVENT>-<MECHANISM>-<TARGET>-<DIRECTION>` | 新規は `HYP-<timestamp>` | hypothesis-model.md |
+| スコア項目（impactScore 等 6 種） | なし | hypothesis-model.md |
+| 採否の判断理由を保存（requirements §7） | 検証ログのメモで代用。ステータス変更に理由欄なし | requirements.md |
+| Theme Master 画面（テーマ・代表銘柄の管理） | テーマは表示のみ、編集不可 | architecture.md |
+| 同一イベントの重複検知 | なし | architecture.md |
+| v0.6 レポート（仮説別/テーマ別成績・Markdown 出力） | 未着手 | roadmap.md |
+| CLAUDE.md「次の Issue #5〜#7」 | #5 ルールエンジン・#6 AI 深掘り・#7 CSV バックテストは実装済み | CLAUDE.md |
+
+ロードマップ進捗（実装から判定）: v0.1 ✓ / v0.2 ✓（IndexedDB 以外）/ v0.3 ✓ / v0.4 一部（反対シナリオ ✓・見落とし観点 ✕）/ v0.5 一部（指数・業種データ取り込みは手貼り CSV のみ）/ v0.6 ✕
+
+---
+
+## 9. 既知の不具合・リスク（コード読解で確認。実機再現は未実施）
+
+severity は ISTQB の分類（Critical / High / Medium / Low）。
+
+| ID | sev | 内容 | 根拠 |
+|---|---|---|---|
+| BUG-01 | High | AI 上限超過時もメッセージを出すだけで「仮説に取り込む」が押せ、回数が上限を超えて増える | `AiDeepDive.tsx` の button `disabled` に `canExecute` が無い |
+| BUG-02 | High | 連想ステップが既に 5 件ある仮説（テンプレート適用時は常に 5 件）で「連想を深掘り」を取り込むと、ステップが 1 件も追加されないのに成功表示・回数加算・キャッシュ保存される | `useStore.appendAiResult` の `slice(0, 5 - length)` |
+| BUG-03 | Medium | ステップに欠番がある（例: 1,2,4）状態で AI 連想を取り込むと depth=5 が重複し、React の key（`step.depth`）が衝突する | `HypothesisForm` は depth を詰めない／`Math.min(5, …)` |
+| BUG-04 | Medium | イベントの既定発生日が UTC。日本時間 0:00〜8:59 に開くと前日になる | `EventForm.emptyForm` の `toISOString()` |
+| BUG-05 | Medium | 失敗条件が重複すると React の key（`cond`）が衝突。AI 取り込みは重複を除かない | `HypothesisCard` / `EventTree` の `key={cond}` |
+| BUG-06 | Medium | localStorage の JSON が壊れているとサンプルで起動し、300ms 後の自動保存で元データを上書きする | `loadState` → `initialState` → `saveState` |
+| BUG-07 | Medium | 保存失敗（容量超過等）を利用者に通知しない | `saveState` の戻り値を `useStore` が無視 |
+| BUG-08 | Low | クリップボード書き込み失敗（非 HTTPS・権限拒否）を処理しない | `AiDeepDive.handleCopy` |
+| BUG-09 | Low | インポートが確認なしで全置換。直前の状態に戻せない | `handleImport` |
+| BUG-10 | Low | 最大 DD が「T+5 リターンの最小値」で、期間中の最大下落率ではない | `summarizeBacktest` |
+| BUG-11 | Low | SW がキャッシュ優先のため、デプロイ直後は 1 回前の版が表示される | `sw.js` の `cached || networkPromise` |
+| BUG-12 | Low | 仮説詳細画面の選択 ID が state 変化に追従しない（インポート後に空表示になり得る） | `HypothesisDetailView` の `useState` 初期値のみ |
+| RISK-01 | — | 自動テストが無く、上記の回帰を機械で検出できない | `package.json` |
+| RISK-02 | — | `App.tsx` 818 行・カテゴリ/ステータスのラベル定義が 3 ファイルに重複 | `App.tsx` / `HypothesisCard.tsx` / `EventTree.tsx` |
+
+---
+
+## 10. 変更履歴
+
+| 日付 | 基準コミット | 内容 |
+|---|---|---|
+| 2026-11-01 | `8f6ab6e` | 初版。現行コードと `docs/*.md` から逆起こし |

@@ -1,5 +1,7 @@
 # MyFinanceTraining — Claude Code Instructions
 
+> **最初に `docs/spec/spec.md` を読む**（現行コードの仕様の真実源）。コード全体を再スキャンせず、同ファイル §2 のファイル地図で対象を絞ってから読む。src を変更したら同じ PR で spec.md を更新する。
+
 ## プロジェクト概要
 
 ニュース・市場イベントから連想ツリーを生成し、日本株/ETF/ETNの投資仮説を管理・検証する個人向け「投資仮説OS」。
