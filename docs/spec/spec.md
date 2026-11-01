@@ -81,6 +81,8 @@
 | `src/components/ImportConfirm.tsx` | 48 | インポート前の差分確認パネル（`diffStates` の結果を表示） | FR-DM-03 |
 | `src/domain/importDiff.ts` | 47 | `diffStates`（events/hypotheses を id で比較） | FR-DM-03 |
 | `src/components/StatusChangeForm.tsx` | 45 | ステータス変更の判断理由入力フォーム | FR-HY-11 |
+| FR-HY-12 | イベント登録直後と、仮説フォームで起点イベントを選んだときに、最上位のテンプレート（FR-RB-02 のスコア順）から下書き（タイトル・連想ステップ・テーマ・銘柄・失敗条件）を自動で入力する。利用者は確認して「仮説を登録」を押すだけで登録できる。スマホでは任意項目を折りたたむ |
+| FR-HY-13 | 仮説詳細に比較表を置く。列: タイトル・状態・緊急度・検証（的中/総数）・最終更新（採否履歴と検証ログの最新日付。無ければ「-」で並べ替えでは末尾）。並べ替え（状態は 要検証→監視→採用→却下 の順、検証は的中数→総数）・状態での絞り込み・ページ送り。行を押すと詳細を開く |
 | `src/components/StatusHistory.tsx` | 23 | 採否履歴の表示（新しい順） | FR-HY-11 |
 | `src/services/reportService.ts` | 93 | レポート集計・Markdown 生成 | FR-RP |
 | `src/views/ReportView.tsx` | 112 | レポート画面 | FR-RP |
@@ -113,6 +115,10 @@
 | `src/views/{AssociationTreeDesktop,HypothesisDetailDesktop}.tsx` | 131/66 | 連想ツリー・仮説詳細の PC 版 | NFR-DESK |
 | `src/styles/desktop.css`・`src/styles/desktop/*.css` | 86/— | PC で画面全体・各枠のスクロールを止めるレイアウト | NFR-DESK |
 | `src/styles/shell.css` | — | 本文フォント（Noto Sans JP。`@fontsource/noto-sans-jp` を同梱し外部通信なし）と PC 幅の明るく細いサイドバー（180px） | NFR-DESK |
+| `src/domain/hypothesisDraft.ts`・`src/styles/hypothesis-draft.css` | 77/13 | イベントから最上位テンプレートで仮説の下書きを作る | FR-HY-12, FR-RB-05 |
+| `src/domain/hypothesisCompare.ts`・`src/components/HypothesisCompare.tsx`・`src/styles/desktop/hypothesis-compare.css` | 66/156/41 | 仮説の比較表（並べ替え・絞り込み・ページ送り） | FR-HY-13 |
+| `src/components/{AssociationFlow.tsx,associationFlowModel.ts}` | — | 深さごとの列に並べる横向きの連想フロー図 | FR-TR-05 |
+| `src/infrastructure/claudeClient.ts`・`src/styles/ai-connect.css` | 100/19 | Claude Messages API をブラウザから直接呼ぶ（fetch のみ・60 秒で打ち切り） | FR-AI-11〜14, NFR-SEC |
 | `scripts/check-no-scroll.mjs` | 84 | 7 画面 × 2 データ × 3 解像度のスクロール検査 | NFR-DESK |
 | `public/sw.js` | — | Service Worker（navigation は network-first、静的資産は SWR） | NFR-PWA |
 | `src/**/*.test.ts(x)`・`src/test/`・`playwright.config.ts`・`eslint.config.js` | — | テスト・lint 設定 | NFR-QA |
@@ -288,6 +294,7 @@ ID は本ファイル内で採番。`docs/requirements.md` の番号との対応
 | FR-RB-02 | スコア = カテゴリ一致 +2 ＋ キーワード 1 語一致ごとに +1（`title + summary` を小文字化して照合。日本語は部分一致、英数字だけの語は単語境界で一致＝`matchesKeyword`）。スコア > 0 を降順表示 |
 | FR-RB-03 | チップを押すと、連想ステップ 5 行・対象テーマ・候補銘柄・失敗条件を**上書き**で自動入力（タイトル・方向性・緊急度は変えない）。適用中のチップを強調 |
 | FR-RB-04 | 起点イベントを変えると適用中の強調を解除（入力済みの値は残る） |
+| FR-RB-05 | 下書き（FR-HY-12）はスコアが最も高いテンプレートを使う。該当が無ければ下書きを作らず、従来の手入力にする |
 
 テンプレート一覧（`rules.ts`、15 件。各 5 ステップ・失敗条件 3 件）:
 
@@ -319,6 +326,7 @@ ID は本ファイル内で採番。`docs/requirements.md` の番号との対応
 | FR-TR-02 | 仮説ノードを押すと連想ステップと失敗条件を展開（同時に 1 件だけ） |
 | FR-TR-03 | 存在しないイベントに紐づく仮説（`eventId=''` を含む）は「イベント未紐付け」にまとめる |
 | FR-TR-04 | イベント・仮説とも 0 件なら「イベントと仮説を登録するとツリーが表示されます」 |
+| FR-TR-05 | 連想は深さ（1〜5）ごとの列に並べたフロー図で表示する。同じ深さ・同じ文言のノードは合流させ、文言は 14 文字で切る（同じ深さに複数のステップがある仮説は「／」で結合）。PC は仮説の枠に「連想フロー（既定）／仮説一覧」のタブを置き、横向きで 3 仮説ずつページ送り。ノードを押すと詳細を開く。スマホは「🌲 ツリー表示」をイベント選択＋縦向きのフローに置き換えた（FR-TR-01〜02 の仮説ノード展開はスマホで廃止） |
 
 ステータス色: 採用 `#16a34a` / 様子見 `#d97706` / 棄却 `#dc2626` / 要検証 `#7c3aed`
 
@@ -344,6 +352,10 @@ ID は本ファイル内で採番。`docs/requirements.md` の番号との対応
 | FR-AI-08 | 取り込み時に貼り付け結果をキャッシュ（key = `仮説ID:種別`）し、使用回数を +1。キャッシュがあれば「キャッシュを読み込む（日付）」で貼り付け欄に復元 |
 | FR-AI-09 | 上限: 日次 `dailyLimit`・月次 `monthlyLimit` を超えたら「本日の実行上限に達しました。Settings で上限を変更できます。」を表示し、取り込みボタンを `disabled` にする（`decideAiApply` でも判定。BUG-01 解消）。クリップボード失敗時は手動コピー案内（`role=alert`。BUG-08 解消） |
 | FR-AI-10 | 使用回数は日付・月が変わると 0 に戻る（Asia/Tokyo 基準） |
+| FR-AI-11 | 設定の「AI 接続」で Anthropic の API キーとモデル（既定 `claude-sonnet-5-5`、`claude-haiku-5-5`・`claude-opus-5-5` を選択可）を保存する。「接続を確かめる」は max_tokens=8 で 1 回呼び、使用回数に数えない。キーが無いときは FR-AI-02 の手動コピーで進める |
+| FR-AI-12 | キーがあると AI 深掘りで「AI に問い合わせる」を出し、`POST https://api.anthropic.com/v1/messages`（`anthropic-version: 2023-06-01`、`anthropic-dangerous-direct-browser-access: true`）を呼ぶ。`temperature`・`thinking` は送らない。応答は `type: text` のブロックだけを貼り付け欄へ入れる。成功応答のたびに使用回数を +1 する（課金されるため） |
+| FR-AI-13 | 失敗の分類と文言: 401/403→キー不正、429→集中、5xx/529→AI 側障害、その他 4xx→受け付けず、`stop_reason: refusal`→回答を控えた（部分文面は取り込まない）、通信不可、60 秒で打ち切り、取り消し。API の生の文面は表示しない |
+| FR-AI-14 | キーは localStorage に平文で保存し、JSON エクスポートに含めない |
 
 ### FR-BT CSV バックテスト（`csvParser.ts`・`backtestEngine.ts`・`views/BacktestView.tsx`）
 
@@ -420,10 +432,10 @@ ID は本ファイル内で採番。`docs/requirements.md` の番号との対応
 | NFR-PWA | オフライン・ホーム画面追加 | `sw.js`（キャッシュ名 `my-finance-training-v4`）: install でルートと manifest を事前キャッシュ、navigation は network-first（オフライン時はキャッシュ）、静的資産は Stale-While-Revalidate。install の無条件 skipWaiting は廃止し、message `SKIP_WAITING` で skipWaiting する。`swUpdate.ts` が待機中の SW を検知し、`UpdateBanner` が「新しいバージョンがあります」「更新する」を表示。更新時は `controllerchange` で 1 回だけ reload。manifest は standalone・SVG アイコン 1 つ |
 | NFR-DESK | PC 幅（961px 以上）でスクロールしない | 画面全体も各枠も縦スクロールしない。一覧は枠に収まる件数ずつページ送り、詳細は 1 件をタブで切り替える（一覧＋詳細の 2 ペイン）。例外はバックテストの CSV 入力欄（長文を貼ったときの内部スクロール）。PC 版は EventTree の「🌲 ツリー表示」を出さない。**対応する最小サイズは 961x540**（ブラウザの枠を除く表示領域）。高さ 620px 以下は余白と見出しの補足文を省く。切れの定義: 縦・横のはみ出し、親の枠から出た部品、タブ名の折り返し（`…` の省略表示＋title は許容）。検査: E2E `06-desktop-no-scroll`（961x540・1280x600・1366x657・1920x969 × サンプル/大量データ × 全画面・全タブ。`npm run test:layout`。**`deploy.yml` が build 前に実行し、失敗すると公開しない**）と `scripts/check-no-scroll.mjs`（`--sizes` で任意サイズ） |
 | NFR-MOB | スマホ幅 | モバイルヘッダー＋ボトムナビ。表は横スクロール。最大幅 520px での確認が開発規約 |
-| NFR-SEC | 秘密情報 | APIキーを扱わない（AI は手動コピー）。外部通信なし |
+| NFR-SEC | 秘密情報 | 外部通信は利用者がキーを保存したときの `api.anthropic.com` だけ。キーは端末の localStorage に平文で保存（XSS があれば読まれる）し、エクスポート・ログ・画面に出さない。キーが無ければ外部通信なし |
 | NFR-PRIV | データの所在 | 端末の localStorage のみ。端末間同期なし |
 | NFR-TZ | 日付 | `dateUtils` は Asia/Tokyo 固定。backtest の `addBusinessDays` は UTC メソッドで統一 |
-| NFR-COST | AI 費用 | 0 円（API 未使用）。回数上限は自己管理用 |
+| NFR-COST | AI 費用 | キーを保存しなければ 0 円。保存した場合は利用者の Anthropic アカウントに従量課金（$/1M トークン 入力/出力: Opus 5.5 $4/$20・Sonnet 5.5 $2/$10・Haiku 5.5 $0.10/$0.50）。回数上限（FR-AI-09）で自己管理する |
 | NFR-QA | 品質保証 | L1 単体・L2 結合: `npm test`（Vitest）／L3 E2E: `npm run test:e2e`（Playwright。deploy には含めない）／静的: `npm run typecheck`・`npm run lint`。`ci.yml`（手動起動）と `deploy.yml`（main push）が typecheck→lint→test→build を実行 |
 | NFR-CODE | コーディング規約 | ファイル 800 行以下・関数 50 行以下・`any` 禁止・strict。`App.tsx` は約 170 行に分割済み |
 | NFR-REPRO | 再現性 | 依存は完全固定（`latest` 廃止・lockfile の実バージョン）。`deploy.yml`・`ci.yml` は `npm ci`。Node >=22.12 |
@@ -484,3 +496,4 @@ severity は ISTQB の分類（Critical / High / Medium / Low）。v0.2 で解�
 | 2026-11-01 | `fix/desktop-min-size` | PC の低い・狭い画面での切れを解消（設定の免責をタブへ、低い画面の余白縮小、タブ列の折り返し、入力欄の幅、バックテストの仮説 ID をページ送り、レポート表の列幅）。検査に全タブ・横方向・枠外・タブ折り返しと最小サイズ 961x540 を追加 |
 | 2026-11-01 | `ci/layout-gate` | `deploy.yml` に PC 幅の見切れ検査（`npm run test:layout`）を追加。見切れのある版は公開されない |
 | 2026-11-01 | `feat/font-sidebar` | 本文フォントを Noto Sans JP（同梱・400/500/700）に変更。PC 幅のサイドバーを白地・幅 180px・文字だけの細い形に変更 |
+| 2026-11-01 | `feat/ux-four` | 仮説の下書き自動入力（FR-HY-12・FR-RB-05）、仮説の比較表（FR-HY-13）、横向きの連想フロー図（FR-TR-05）、Claude API の直接呼び出し（FR-AI-11〜14）。NFR-SEC・NFR-COST を改訂 |

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { Hypothesis, MarketEvent } from '../domain/types';
-import { useAiDeepDive, PROMPT_TYPES } from './AiDeepDive';
+import { useAiDeepDive, PROMPT_TYPES, AiAskButtons } from './AiDeepDive';
 import { PagedRows } from './PagedRows';
 import { isoToTokyoDateStr } from '../utils/dateUtils';
 
@@ -14,8 +14,9 @@ type Props = {
 
 // PC はプロンプトのコピーと結果の貼り付けを 1 段ずつ見せて枠に収める。判定と保存は useAiDeepDive と共有
 export function AiDeepDiveDesktop(props: Props) {
-  const ai = useAiDeepDive(props);
   const [stage, setStage] = useState<1 | 2>(1);
+  // API の回答は ② に入るので、結果と取り込みの成否が見える段へ移す
+  const ai = useAiDeepDive(props, () => setStage(2));
   const lines = ai.prompt.split('\n').map((text, i) => ({ text: text || ' ', i }));
 
   return (
@@ -28,6 +29,7 @@ export function AiDeepDiveDesktop(props: Props) {
               type="button"
               title={pt.desc}
               className={`filter-chip${ai.promptType === pt.value ? ' active' : ''}`}
+              disabled={ai.api.asking}
               onClick={() => ai.selectType(pt.value)}
             >{pt.label}</button>
           ))}
@@ -44,7 +46,9 @@ export function AiDeepDiveDesktop(props: Props) {
 
       {stage === 1 ? (
         <>
-          <p className="ai-step-label">① 以下のプロンプトをコピーして Claude.ai 等に貼り付け</p>
+          <p className="ai-step-label">{ai.api.hasKey
+            ? '「AI に聞く」で回答を取り込みます。手動ならプロンプトをコピーして外部の AI に貼り付け'
+            : '① プロンプトをコピーして Claude.ai 等に貼り付け（設定で API キーを登録すると 1 回で聞けます）'}</p>
           <div className="ai-desk-prompt">
             <PagedRows
               key={ai.promptType}
@@ -57,6 +61,7 @@ export function AiDeepDiveDesktop(props: Props) {
             />
           </div>
           <div className="ai-desk-actions">
+            {ai.api.hasKey && <AiAskButtons api={ai.api} canExecute={props.canExecute} />}
             <button type="button" className="btn btn-sm" onClick={ai.handleCopy}>{ai.copied ? '✓ コピー済み' : 'コピー'}</button>
             {ai.cached && (
               <button type="button" className="btn btn-sm btn-ghost" onClick={() => { ai.loadCached(); setStage(2); }}>
@@ -80,7 +85,7 @@ export function AiDeepDiveDesktop(props: Props) {
             <button
               type="button"
               className="btn btn-primary"
-              disabled={!props.canExecute || !ai.pasted.trim() || ai.applied}
+              disabled={!props.canExecute || !ai.pasted.trim() || ai.applied || ai.api.asking}
               onClick={ai.handleApply}
             >{ai.applied ? '✓ 取り込み完了' : '仮説に取り込む'}</button>
           </div>

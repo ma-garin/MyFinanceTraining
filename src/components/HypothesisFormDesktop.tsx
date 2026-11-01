@@ -1,19 +1,20 @@
 import { useState } from 'react';
 import type { Hypothesis, MarketEvent } from '../domain/types';
 import {
-  useHypothesisForm, BasicFields, TemplateSuggestions, StepFields, ThemeField, StocksField, InvalidationField,
+  useHypothesisForm, BasicFields, MetaFields, TemplateSuggestions, StepFields, ThemeField, StocksField, InvalidationField,
 } from './HypothesisForm';
 
 type Props = {
   events: MarketEvent[];
   onAdd: (hypothesis: Hypothesis) => void;
+  initialEventId?: string;
 };
 
 const PAGES = ['基本', '連想ステップ', 'テーマ・候補銘柄', '失敗条件・登録'] as const;
 
 // PC は 1 段ずつ見せて枠に収める。入力状態・検証・登録はスマホのフォームと同じフックを使う
-export function HypothesisFormDesktop({ events, onAdd }: Props) {
-  const f = useHypothesisForm({ events, onAdd });
+export function HypothesisFormDesktop({ events, onAdd, initialEventId }: Props) {
+  const f = useHypothesisForm({ events, onAdd, initialEventId });
   const [page, setPage] = useState(0);
   const last = PAGES.length - 1;
 
@@ -42,7 +43,7 @@ export function HypothesisFormDesktop({ events, onAdd }: Props) {
       {f.error && <p className="form-error">{f.error}</p>}
 
       <div className="hyp-form-desk-body">
-        {page === 0 && <><BasicFields f={f} events={events} /><TemplateSuggestions f={f} /></>}
+        {page === 0 && <><BasicFields f={f} events={events} /><MetaFields f={f} /><TemplateSuggestions f={f} /></>}
         {page === 1 && <StepFields f={f} />}
         {page === 2 && <><ThemeField f={f} /><StocksField f={f} rows={6} /></>}
         {page === 3 && <InvalidationField f={f} rows={6} />}
@@ -51,9 +52,11 @@ export function HypothesisFormDesktop({ events, onAdd }: Props) {
       <div className="hyp-form-desk-nav">
         <button type="button" className="btn btn-ghost" disabled={page === 0} onClick={() => setPage(p => p - 1)}>‹ 前へ</button>
         <span className="pager-pos">{page + 1} / {PAGES.length}</span>
-        {page < last
-          ? <button type="button" className="btn btn-ghost" onClick={() => setPage(p => p + 1)}>次へ ›</button>
-          : <button type="submit" className="btn btn-primary">仮説を登録</button>}
+        {/* 下書きが入っていれば残りの段を見ずに登録できるよう、登録はどの段からも押せる */}
+        <span className="hyp-draft-desk-actions">
+          {page < last && <button type="button" className="btn btn-ghost" onClick={() => setPage(p => p + 1)}>次へ ›</button>}
+          <button type="submit" className="btn btn-primary">仮説を登録</button>
+        </span>
       </div>
     </form>
   );

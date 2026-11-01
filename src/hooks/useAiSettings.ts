@@ -4,6 +4,8 @@ import { todayStr, monthStr } from '../utils/dateUtils';
 import {
   loadAiSettings, saveAiSettings,
   loadAiUsage, saveAiUsage,
+  loadApiKey, saveApiKey, clearApiKey,
+  loadAiModel, saveAiModel, type AiModelId,
 } from '../infrastructure/aiStorage';
 
 export const useAiSettings = () => {
@@ -37,4 +39,29 @@ export const useAiSettings = () => {
   }, [usage]);
 
   return { settings, usage, updateSettings, canExecute, incrementUsage };
+};
+
+// API キーとモデルは App 経由の props にせず各画面で読む。キーを AppState の流れに乗せないため
+export const useClaudeConfig = () => {
+  const [apiKey, setApiKey] = useState<string>(loadApiKey);
+  const [model, setModelState] = useState<AiModelId>(loadAiModel);
+
+  const saveKey = useCallback((key: string): boolean => {
+    const ok = saveApiKey(key);
+    if (ok) setApiKey(key.trim());
+    return ok;
+  }, []);
+
+  const clearKey = useCallback((): boolean => {
+    const ok = clearApiKey();
+    if (ok) setApiKey('');
+    return ok;
+  }, []);
+
+  const setModel = useCallback((m: AiModelId): boolean => {
+    setModelState(m);
+    return saveAiModel(m);
+  }, []);
+
+  return { apiKey, hasKey: apiKey !== '', model, saveKey, clearKey, setModel };
 };

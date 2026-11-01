@@ -56,3 +56,41 @@ export const addCacheEntry = (entry: AiCacheEntry): boolean => {
   const cache = loadAiCache().filter(e => e.key !== entry.key);
   return save(CACHE_KEY, [...cache, entry].slice(-MAX_CACHE_ENTRIES));
 };
+
+// API キーは AppState（myfinancetraining_v1）と別のキーに置き、JSON 書き出しに混ざらないようにする
+export const API_KEY_KEY = 'mft_ai_api_key';
+export const MODEL_KEY   = 'mft_ai_model';
+
+export const AI_MODELS = [
+  { id: 'claude-sonnet-5-5', label: 'Sonnet（標準）' },
+  { id: 'claude-haiku-5-5',  label: 'Haiku（速い・安い）' },
+  { id: 'claude-opus-5-5',   label: 'Opus（高精度・高い）' },
+] as const;
+export type AiModelId = typeof AI_MODELS[number]['id'];
+export const DEFAULT_AI_MODEL: AiModelId = 'claude-sonnet-5-5';
+
+const isModelId = (v: unknown): v is AiModelId => AI_MODELS.some(m => m.id === v);
+
+// キーは生の文字列で持つ。JSON にすると破損時に既定へ戻す経路が増えるだけで利点がない
+export const loadApiKey = (): string => {
+  try { return localStorage.getItem(API_KEY_KEY)?.trim() ?? ''; } catch { return ''; }
+};
+export const saveApiKey = (key: string): boolean => {
+  try {
+    localStorage.setItem(API_KEY_KEY, key.trim());
+    return true;
+  } catch {
+    // キーの値をログに残さないため、例外の内容は出さない
+    console.error('aiStorage save api key failed');
+    return false;
+  }
+};
+export const clearApiKey = (): boolean => {
+  try { localStorage.removeItem(API_KEY_KEY); return true; } catch { return false; }
+};
+
+export const loadAiModel = (): AiModelId => {
+  const v = load<unknown>(MODEL_KEY, DEFAULT_AI_MODEL);
+  return isModelId(v) ? v : DEFAULT_AI_MODEL;
+};
+export const saveAiModel = (m: AiModelId): boolean => save(MODEL_KEY, m);

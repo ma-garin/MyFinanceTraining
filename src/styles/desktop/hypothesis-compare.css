@@ -1,0 +1,41 @@
+/* 仮説の比較表。スマホは行リスト、PC は枠に収まる行数ごとのページ送りの表（NFR-DESK） */
+.hc-toggle { display: inline-flex; border: 1px solid var(--border); border-radius: 999px; padding: 2px; background: var(--surface); flex: none; }
+.hc-toggle-btn { border: none; background: transparent; border-radius: 999px; padding: 6px 14px; font: inherit; font-size: 13px; color: var(--text-3); cursor: pointer; white-space: nowrap; min-height: 32px; }
+.hc-toggle-btn.active { background: var(--brand-glow, #e0f2fe); color: var(--text); font-weight: 600; }
+.hc-mobile-toggle { margin: 0 0 12px; }
+
+.hc-root { display: flex; flex-direction: column; gap: 10px; min-width: 0; max-width: 100%; }
+.hc-filters { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; align-items: end; }
+.hc-field { display: flex; flex-direction: column; gap: 2px; font-size: 12px; color: var(--text-3); min-width: 0; }
+.hc-field select { width: 100%; min-width: 0; max-width: 100%; box-sizing: border-box; font-size: 14px; padding: 6px 8px; }
+.hc-sort { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: end; }
+.hc-dir { min-height: 36px; white-space: nowrap; }
+.hc-count { grid-column: 1 / -1; font-size: 12px; color: var(--text-3); }
+.hc-pill { padding: 2px 8px; font-size: 11px; }
+
+.hc-list > li { min-width: 0; }
+.hc-list { min-width: 0; list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.hc-item { width: 100%; box-sizing: border-box; min-width: 0; display: flex; flex-direction: column; gap: 3px; text-align: left; font: inherit; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius-md, 10px); background: var(--surface); color: var(--text); cursor: pointer; }
+.hc-item-top { display: flex; align-items: center; gap: 8px; justify-content: space-between; min-width: 0; }
+.hc-item-title { font-weight: 600; font-size: 14px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hc-item-sub { font-size: 12px; color: var(--text-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+@media (min-width: 961px) {
+  .hyp-desk > .view-header.hc-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .hc-root { flex: 1 1 auto; min-height: 0; overflow: hidden; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 12px 14px; gap: 8px; }
+  .hc-filters { flex: none; display: flex; align-items: center; gap: 12px; }
+  .hc-field { flex-direction: row; align-items: center; gap: 6px; font-size: 13px; }
+  .hc-field select { width: 150px; padding: 4px 8px; font-size: 13px; }
+  .hc-count { margin-left: auto; }
+  .hc-table { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; gap: 4px; overflow: hidden; }
+  .hc-grid { display: grid; grid-template-columns: minmax(0, 1fr) 84px minmax(0, 150px) 44px 104px 56px 88px; gap: 8px; align-items: center; }
+  .hc-head { flex: none; border-bottom: 1px solid var(--border); padding: 0 8px 4px; }
+  .hc-sort-btn { border: none; background: transparent; font: inherit; font-size: 12px; font-weight: 600; color: var(--text-3); text-align: left; padding: 4px 0; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+  .hc-sort-btn.active { color: var(--text); }
+  .hc-body { flex: 1 1 auto; min-height: 0; overflow: hidden; }
+  .hc-row { width: 100%; height: 40px; margin-bottom: 4px; box-sizing: border-box; padding: 0 8px; font: inherit; font-size: 13px; text-align: left; color: var(--text); background: transparent; border: 1px solid var(--border-light); border-radius: 8px; cursor: pointer; }
+  .hc-row:hover { background: var(--surface-2); }
+  .hc-row > span { min-width: 0; overflow: hidden; }
+  .hc-cell { white-space: nowrap; text-overflow: ellipsis; }
+  .hc-num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+}

@@ -41,6 +41,8 @@ describe('PC 表示（961px 以上）の 2 ペイン', () => {
   it('連想ツリー: イベントの仮説を選ぶと詳細、追加でフォームを段ごとに出す', async () => {
     const user = userEvent.setup();
     render(<AssociationTreeView state={state} onAdd={vi.fn()} {...handlers} />);
+    // 既定は連想フロー図。一覧から詳細を開く経路を確かめる
+    await user.click(screen.getByRole('tab', { name: '仮説一覧' }));
     await user.click(screen.getByRole('button', { name: /仮説アルファ/ }));
     await user.click(screen.getByRole('tab', { name: '連想' }));
     expect(screen.getByText('1. 起点ステップ')).toBeInTheDocument();

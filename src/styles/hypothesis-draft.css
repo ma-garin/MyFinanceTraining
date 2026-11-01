@@ -1,0 +1,13 @@
+/* 仮説の下書き（自動入力）と、必須でない項目の折りたたみ */
+.hyp-draft-fold { margin: 0 0 12px; border: 1px solid var(--border, #e2e8f0); border-radius: 8px; padding: 8px 10px; }
+.hyp-draft-fold > summary { cursor: pointer; font-size: 13px; font-weight: 600; min-height: 32px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.hyp-draft-fold[open] > summary { margin-bottom: 8px; }
+.hyp-draft-preview { font-weight: 400; color: var(--text-3, #64748b); font-size: 12px; overflow-wrap: anywhere; }
+.hyp-draft-fold .step-fieldset { margin: 0; border: 0; padding: 0; }
+.hyp-draft-desk-actions { display: flex; gap: 8px; }
+
+.draft-prompt { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; padding: 10px 12px; margin: 0 0 12px; border: 1px solid var(--brand-accent, #0284c7); border-radius: 8px; background: #f0f9ff; font-size: 13px; }
+.draft-prompt p { margin: 0; overflow-wrap: anywhere; }
+.draft-prompt-panel { display: flex; flex-direction: column; gap: 8px; min-height: 0; flex: 1 1 auto; }
+.draft-prompt-panel > .draft-prompt-back { align-self: flex-start; }
+.event-input-view .draft-prompt-panel .hyp-form-desk { flex: 1 1 auto; min-height: 0; }
