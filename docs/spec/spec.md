@@ -1,6 +1,6 @@
 # MyFinanceTraining 仕様書（As-Built Spec）
 
-- 基準コミット: `8f6ab6e`（2026-11-01 時点の main）
+- 基準コミット: `4f38825`（2026-11-01 v1.0.0 マージ時点の main）
 - 位置づけ: **現行コードから逆起こしした仕様の真実源**。AIDD の各工程はまずこのファイルを読み、コード全体の再スキャンをしない
 - 対象範囲: `src/` 全体・`public/`・`vite.config.ts`・`package.json`・`.github/workflows/deploy.yml`・`docs/*.md`
 
@@ -75,8 +75,8 @@
 | ファイル | 行 | 責務 | 関連 FR |
 |---|---|---|---|
 | `src/main.tsx` | 19 | ルート描画・SW 登録 | NFR-PWA |
-| `src/App.tsx` | 約170 | シェル・ナビ・state 配線のみ | 全 FR |
-| `src/views/{Dashboard,EventInput,AssociationTree,HypothesisDetail,Backtest,Settings}View.tsx` | — | 6 画面の描画 | 全 FR |
+| `src/App.tsx` | 196 | シェル・ナビ・state 配線のみ | 全 FR |
+| `src/views/{Dashboard,EventInput,AssociationTree,HypothesisDetail,Backtest,Report,Settings}View.tsx` | — | 7 画面の描画 | 全 FR |
 | `src/components/shell/{nav.ts,MobileHeader,BottomNav,ToastContainer,RecoveryScreen}.tsx` | — | ナビ定義・ヘッダー・下部タブ・トースト・破損データ復旧画面 | FR-DM, BUG-06 |
 | `src/components/ImportConfirm.tsx` | 48 | インポート前の差分確認パネル（`diffStates` の結果を表示） | FR-DM-03 |
 | `src/domain/importDiff.ts` | 47 | `diffStates`（events/hypotheses を id で比較） | FR-DM-03 |
