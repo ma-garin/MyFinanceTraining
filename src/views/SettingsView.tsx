@@ -7,9 +7,11 @@ type SettingsProps = {
   onUpdate: (s: ReturnType<typeof useAiSettings>['settings']) => void;
   onExport: () => void;
   onImport: (file: File) => void;
+  canUndoImport: boolean;
+  onUndoImport: () => void;
 };
 
-export function SettingsView({ settings, usage, onUpdate, onExport, onImport }: SettingsProps) {
+export function SettingsView({ settings, usage, onUpdate, onExport, onImport, canUndoImport, onUndoImport }: SettingsProps) {
   const [daily, setDaily] = useState(String(settings.dailyLimit));
   const [monthly, setMonthly] = useState(String(settings.monthlyLimit));
   const [saved, setSaved] = useState(false);
@@ -80,6 +82,7 @@ export function SettingsView({ settings, usage, onUpdate, onExport, onImport }: 
               onChange={e => { if (e.target.files?.[0]) onImport(e.target.files[0]); e.target.value = ''; }}
             />
           </label>
+          {canUndoImport && <button className="btn" onClick={onUndoImport}>取り込みを元に戻す</button>}
         </div>
       </article>
 

@@ -1,5 +1,5 @@
 // 版を上げると activate で旧キャッシュを消す。リリースで SW の挙動を変えたら必ず上げる
-const CACHE_NAME = 'my-finance-training-v3';
+const CACHE_NAME = 'my-finance-training-v4';
 
 // App shell + manifest on install
 const PRECACHE = [
@@ -24,7 +24,11 @@ self.addEventListener('install', (event) => {
       await precacheShellAssets(cache).catch((err) => console.warn('asset precache failed', err));
     })
   );
-  self.skipWaiting();
+});
+
+// 更新はユーザーがバナーで承認したときだけ有効化する（操作中の画面を突然差し替えない）
+self.addEventListener('message', (event) => {
+  if (event.data === 'SKIP_WAITING') self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {

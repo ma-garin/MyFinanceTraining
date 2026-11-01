@@ -55,6 +55,21 @@ describe('generatePrompt: counter_scenario', () => {
   });
 });
 
+describe('missing_angle', () => {
+  it('プロンプトに見落とし観点の語と既存ステップを含み、投資助言を除外する', () => {
+    const p = generatePrompt('missing_angle', hypothesis(), event);
+    expect(p).toContain('見落としている観点');
+    expect(p).toContain('時間軸のずれ');
+    expect(p).toContain('1. 原油高（供給不安）');
+    expect(p).toContain('投資助言・売買推奨は含めないでください');
+  });
+
+  it('番号付き行を conditions として解析し steps は空', () => {
+    const r = parsePastedResult('missing_angle', '1. 代替経路で需要が相殺\n2. 既に織り込み済み');
+    expect(r).toEqual({ steps: [], conditions: ['代替経路で需要が相殺', '既に織り込み済み'] });
+  });
+});
+
 describe('parsePastedResult: association_expand', () => {
   it('「連想先: X / 理由: Y」形式から label/reason を抽出する', () => {
     const r = parsePastedResult('association_expand', '- 連想先: ゲーム需要 / 理由: 在宅増');

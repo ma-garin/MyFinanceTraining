@@ -64,6 +64,15 @@ export type Hypothesis = {
   status: HypothesisStatus;
   verificationLogs?: VerificationLog[];
   invalidationRules?: InvalidationRule[];
+  statusHistory?: StatusChange[];
+};
+
+// 採否の判断を後から振り返るため、変更のたびに理由と日時を残す
+export type StatusChange = {
+  date: string;          // ISO string
+  from: HypothesisStatus;
+  to: HypothesisStatus;
+  reason: string;
 };
 
 export type TargetTheme = {
@@ -84,7 +93,7 @@ export type AppState = {
 
 // ─── AI Deep-Dive ───────────────────────────────────────────────────────────
 
-export type AiPromptType = 'association_expand' | 'counter_scenario';
+export type AiPromptType = 'association_expand' | 'counter_scenario' | 'missing_angle';
 
 export type AiSettings = {
   dailyLimit: number;
@@ -128,4 +137,5 @@ export type BacktestResult = {
   t1Return: number | null;
   t3Return: number | null;
   t5Return: number | null;
+  maxDrawdown: number | null;
 };

@@ -56,8 +56,8 @@ describe('runBacktest: 欠損の扱い', () => {
   });
 });
 
-const res = (ticker: string, t1: number | null, t3: number | null, t5: number | null): BacktestResult => ({
-  hypothesisId: 'H', eventDate: '2024-06-03', ticker, notes: '', t1Return: t1, t3Return: t3, t5Return: t5,
+const res = (ticker: string, t1: number | null, t3: number | null, t5: number | null, dd: number | null = null): BacktestResult => ({
+  hypothesisId: 'H', eventDate: '2024-06-03', ticker, notes: '', t1Return: t1, t3Return: t3, t5Return: t5, maxDrawdown: dd,
 });
 
 describe('summarizeBacktest: 銘柄別集計', () => {
@@ -118,5 +118,35 @@ describe('summarizeBacktest: worstT5Return（T+5 リターン最小値と0の小
 
   it('T+5 が全件 null なら 0', () => {
     expect(summarizeBacktest([res('A', 0.1, 0.1, null)])[0].worstT5Return).toBe(0);
+  });
+});
+
+describe('maxDrawdown: 期間内の山から谷', () => {
+  const days = ['2024-06-03', '2024-06-04', '2024-06-05', '2024-06-06', '2024-06-07', '2024-06-10'];
+  const series = (closes: number[]) => closes.map((c, i) => px(days[i], c));
+
+  it('単調上昇なら 0', () => {
+    const [r] = runBacktest(series([100, 101, 102, 103, 104, 105]), [evt('2024-06-03')]);
+    expect(r.maxDrawdown).toBe(0);
+  });
+
+  it('100→120→90 なら -0.25（山は期間内の最高値）', () => {
+    const [r] = runBacktest(series([100, 120, 90, 95, 100, 110]), [evt('2024-06-03')]);
+    expect(r.maxDrawdown).toBeCloseTo(-0.25);
+  });
+
+  it('基準日の終値も山に含む', () => {
+    const [r] = runBacktest(series([100, 90, 91, 92, 93, 94]), [evt('2024-06-03')]);
+    expect(r.maxDrawdown).toBeCloseTo(-0.1);
+  });
+
+  it('データ不足なら null', () => {
+    const [r] = runBacktest(series([100, 120, 90]), [evt('2024-06-03')]);
+    expect(r.maxDrawdown).toBeNull();
+  });
+
+  it('summary はグループ内の最小値、null は除外、全 null なら null', () => {
+    expect(summarizeBacktest([res('A', 0, 0, 0, -0.1), res('A', 0, 0, 0, -0.25), res('A', 0, 0, 0, null)])[0].maxDrawdown).toBeCloseTo(-0.25);
+    expect(summarizeBacktest([res('A', 0, 0, 0, null)])[0].maxDrawdown).toBeNull();
   });
 });

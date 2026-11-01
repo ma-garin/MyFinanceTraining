@@ -4,7 +4,7 @@ import { HypothesisCard } from '../components/HypothesisCard';
 
 type DetailProps = {
   state: AppState;
-  onStatusChange: (id: string, status: HypothesisStatus) => void;
+  onStatusChange: (id: string, status: HypothesisStatus, reason: string) => void;
   onDelete: (id: string) => void;
   canExecuteAi: boolean;
   onAiIncrement: () => boolean;

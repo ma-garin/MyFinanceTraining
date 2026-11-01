@@ -18,6 +18,8 @@ import { BacktestView } from './views/BacktestView';
 import { SettingsView } from './views/SettingsView';
 import { RecoveryScreen } from './components/shell/RecoveryScreen';
 import { ImportConfirm } from './components/ImportConfirm';
+import UpdateBanner from './components/shell/UpdateBanner';
+import { ReportView } from './views/ReportView';
 
 const THEME_KEY = 'theme';
 
@@ -30,7 +32,7 @@ const readTheme = (): 'light' | 'dark' => {
 };
 export default function App() {
   const [view, setView] = useState<View>('dashboard');
-  const { state, recovery, saveError, resolveRecoveryByReset, addEvent, addHypothesis, updateHypothesisStatus, appendAiResult, addVerificationLog, deleteEvent, deleteHypothesis, replaceState } = useStore();
+  const { state, recovery, saveError, resolveRecoveryByReset, addEvent, addHypothesis, updateHypothesisStatus, appendAiResult, addVerificationLog, deleteEvent, deleteHypothesis, replaceState, canUndoReplace, undoReplace } = useStore();
   const [pendingImport, setPendingImport] = useState<AppState | null>(null);
   const { settings, usage, updateSettings, canExecute, incrementUsage } = useAiSettings();
   const { toasts, pushToast, dismissToast } = useToast();
@@ -46,13 +48,13 @@ export default function App() {
     }
   }, [theme]);
 
-  const handleStatusChange = useCallback((id: string, status: HypothesisStatus) => {
+  const handleStatusChange = useCallback((id: string, status: HypothesisStatus, reason = '') => {
     const prev = state.hypotheses.find(h => h.id === id)?.status;
-    updateHypothesisStatus(id, status);
+    updateHypothesisStatus(id, status, reason);
     pushToast(
       `ステータスを「${STATUS_LABELS[status]}」に変更しました`,
       3000,
-      prev !== undefined ? () => updateHypothesisStatus(id, prev) : undefined,
+      prev !== undefined ? () => updateHypothesisStatus(id, prev, '直前の変更を取り消し') : undefined,
     );
   }, [state.hypotheses, updateHypothesisStatus, pushToast]);
 
@@ -77,8 +79,12 @@ export default function App() {
     if (!pendingImport) return;
     replaceState(pendingImport);
     setPendingImport(null);
-    pushToast('データをインポートしました');
+    pushToast('データをインポートしました。設定の「取り込みを元に戻す」で戻せます');
   }, [pendingImport, replaceState, pushToast]);
+
+  const handleUndoImport = useCallback(() => {
+    pushToast(undoReplace() ? '取り込み前のデータに戻しました' : '戻せるデータがありません');
+  }, [undoReplace, pushToast]);
 
   const handleDeleteEvent = useCallback((id: string) => {
     deleteEvent(id);
@@ -133,6 +139,7 @@ export default function App() {
       </aside>
 
       <section className="content">
+        <UpdateBanner />
         {saveError && (
           <div className="save-error-banner" role="alert">
             データを保存できませんでした。ブラウザの保存容量やプライベートモードを確認し、設定からエクスポートで退避してください。
@@ -168,6 +175,7 @@ export default function App() {
           />
         )}
         {view === 'backtest' && <BacktestView hypotheses={state.hypotheses} />}
+        {view === 'report' && <ReportView state={state} />}
         {view === 'settings' && (
           <SettingsView
             settings={settings}
@@ -175,6 +183,8 @@ export default function App() {
             onUpdate={updateSettings}
             onExport={handleExport}
             onImport={handleImport}
+            canUndoImport={canUndoReplace}
+            onUndoImport={handleUndoImport}
           />
         )}
       </section>

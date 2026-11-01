@@ -29,6 +29,23 @@ const lookupClose = (map: PriceMap, ticker: string, date: string): number | null
 const calcReturn = (base: number | null, target: number | null): number | null =>
   base != null && target != null && base !== 0 ? (target - base) / base : null;
 
+// 窓内に欠損が1点でもあると谷を見逃すため、全点が揃わなければ null にする
+const calcMaxDrawdown = (map: PriceMap, ticker: string, baseDate: string, days: number): number | null => {
+  const closes: number[] = [];
+  for (let i = 0; i <= days; i++) {
+    const c = lookupClose(map, ticker, i === 0 ? baseDate : addBusinessDays(baseDate, i));
+    if (c == null || c <= 0) return null;
+    closes.push(c);
+  }
+  let peak = closes[0];
+  let worst = 0;
+  for (const c of closes) {
+    peak = Math.max(peak, c);
+    worst = Math.min(worst, (c - peak) / peak);
+  }
+  return worst;
+};
+
 export const runBacktest = (
   priceRows: PriceRow[],
   eventRows: BacktestEventRow[],
@@ -48,6 +65,7 @@ export const runBacktest = (
       t1Return: calcReturn(base, lookupClose(priceMap, ev.ticker, t1Date)),
       t3Return: calcReturn(base, lookupClose(priceMap, ev.ticker, t3Date)),
       t5Return: calcReturn(base, lookupClose(priceMap, ev.ticker, t5Date)),
+      maxDrawdown: calcMaxDrawdown(priceMap, ev.ticker, ev.eventDate, 5),
     };
   });
 };
@@ -65,6 +83,7 @@ export type BacktestSummary = {
   stdDev3: number;
   stdDev5: number;
   worstT5Return: number;
+  maxDrawdown: number | null;
   sampleWarning: boolean;
 };
 
@@ -97,6 +116,7 @@ export const summarizeBacktest = (results: BacktestResult[]): BacktestSummary[] 
     const v1 = validReturns(rows.map(r => r.t1Return));
     const v3 = validReturns(rows.map(r => r.t3Return));
     const v5 = validReturns(rows.map(r => r.t5Return));
+    const dds = validReturns(rows.map(r => r.maxDrawdown));
     const maxDD = v5.length === 0 ? 0 : Math.min(0, ...v5);
 
     return {
@@ -112,6 +132,7 @@ export const summarizeBacktest = (results: BacktestResult[]): BacktestSummary[] 
       stdDev3:       stdDev(v3),
       stdDev5:       stdDev(v5),
       worstT5Return:   maxDD,
+      maxDrawdown:   dds.length === 0 ? null : Math.min(...dds),
       sampleWarning: rows.length < 5,
     };
   });

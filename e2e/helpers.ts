@@ -4,7 +4,7 @@ export const STORE_KEY = 'myfinancetraining_v1';
 
 type Stored = {
   events: { id: string; title: string }[];
-  hypotheses: { id: string; title: string; eventId: string; status: string; associationSteps: { label: string }[]; invalidationConditions: string[] }[];
+  hypotheses: { id: string; title: string; eventId: string; status: string; associationSteps: { label: string }[]; invalidationConditions: string[]; statusHistory?: { from: string; to: string; reason: string }[] }[];
 };
 
 // 外部通信は発生させない。発生したら失敗させるため abort する
