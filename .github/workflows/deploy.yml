@@ -27,6 +27,9 @@ jobs:
       - run: npm run typecheck
       - run: npm run lint
       - run: npm test
+      # PC 幅で見切れ・スクロールが出る版を公開しない（spec NFR-DESK。最小 961x540・全画面・全タブ）
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:layout
       - run: npm run build
       - uses: actions/upload-pages-artifact@v3
         with:
