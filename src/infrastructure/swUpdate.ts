@@ -13,15 +13,19 @@ function notify(reg: ServiceWorkerRegistration): void {
   listeners.forEach((l) => l(reg));
 }
 
+function trackInstalling(reg: ServiceWorkerRegistration, worker: ServiceWorker): void {
+  worker.addEventListener('statechange', () => {
+    // controller が無い初回インストールは更新ではないので通知しない
+    if (worker.state === 'installed' && navigator.serviceWorker.controller) notify(reg);
+  });
+}
+
 export function watchRegistration(reg: ServiceWorkerRegistration): void {
   if (reg.waiting && navigator.serviceWorker.controller) notify(reg);
+  // register() の解決前に updatefound が済んでいると取りこぼすため、インストール中の版も追う
+  if (reg.installing) trackInstalling(reg, reg.installing);
   reg.addEventListener('updatefound', () => {
-    const worker = reg.installing;
-    if (!worker) return;
-    worker.addEventListener('statechange', () => {
-      // controller が無い初回インストールは更新ではないので通知しない
-      if (worker.state === 'installed' && navigator.serviceWorker.controller) notify(reg);
-    });
+    if (reg.installing) trackInstalling(reg, reg.installing);
   });
 }
 

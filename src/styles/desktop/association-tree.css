@@ -1,0 +1,70 @@
+/* PC（961px 以上）の association-tree 画面（連想ツリー・仮説詳細）。styles/desktop.css の共通枠の上に足す */
+@media (min-width: 961px) {
+  .atd .split-list > .eyebrow, .atd .split-detail > .eyebrow,
+  .hyp-desk .split-list > .eyebrow, .hyp-desk .split-detail > .eyebrow { flex: none; margin: 0; }
+  .atd .row-sub, .hyp-desk .row-sub { font-size: 13px; }
+  .pane-empty { margin: 0; padding: 16px; font-size: 13px; color: var(--text-3); }
+  .pane-row {
+    height: 56px;
+    box-sizing: border-box;
+    padding: 6px 10px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    border-bottom: 1px solid var(--border);
+  }
+  .pane-row p { margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 20px; font-size: 13px; }
+  .pane-row .pane-row-sub { color: var(--text-3); }
+
+  .hyp-detail-pane { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; gap: 10px; overflow: hidden; }
+  .hdp-title { flex: none; margin: 0; font-size: 17px; line-height: 1.4; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .hyp-detail-pane .tab { padding: 8px 10px; font-size: 13px; }
+  .hdp-overview { flex: none; display: flex; flex-direction: column; gap: 12px; }
+  .hdp-overview p { margin: 0; }
+  .hdp-inline { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .hdp-inline .hypothesis-id { margin: 0; font-size: 13px; }
+  .hdp-mini { font-size: 13px; padding: 2px 10px; }
+  .hdp-danger { background: var(--danger, #dc2626); color: #fff; border: none; }
+  .hdp-ellipsis { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .hdp-meta { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); gap: 12px; }
+  .hdp-overview .status-actions { margin: 0; padding: 0; border: 0; }
+  .hdp-overview .status-change-form textarea { min-height: 56px; resize: none; }
+  .hdp-tab-head, .atd-head { flex: none; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .hdp-tab-head .eyebrow { margin: 0; }
+  .atd-head .hdp-title { flex: 1 1 auto; min-width: 0; }
+  .atd-filters { flex: none; display: flex; align-items: center; gap: 14px; font-size: 13px; }
+  .atd-filters label { display: flex; align-items: center; gap: 6px; color: var(--text-3); }
+  .atd-filters select { padding: 4px 8px; font-size: 13px; width: auto; }
+  .atd-filters .filter-count { margin: 0 0 0 auto; }
+  .hyp-detail-pane .vlog-add-form { flex: none; display: grid; gap: 8px; margin: 0; }
+  .hyp-detail-pane .vlog-add-form textarea { width: 100%; box-sizing: border-box; resize: none; }
+
+  .ai-desk { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; gap: 10px; overflow: hidden; }
+  .ai-desk-head { flex: none; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+  .ai-desk-types, .ai-desk-stages { display: flex; gap: 6px; }
+  .ai-desk .filter-chip, .hyp-form-desk .filter-chip { font-size: 13px; }
+  .ai-desk-stages .btn { font-size: 13px; padding: 4px 10px; }
+  .ai-desk-stages .btn.active { border-color: var(--brand-accent); color: var(--text); background: var(--brand-glow); }
+  .ai-desk > p { flex: none; margin: 0; }
+  .ai-desk-prompt { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; gap: 6px; padding: 8px; background: var(--surface-2); border-radius: var(--radius-xs); overflow: hidden; }
+  .ai-desk-prompt .fit-area { flex: 1 1 auto; min-height: 0; overflow: hidden; }
+  .ai-desk-line { margin: 0; height: 22px; line-height: 22px; font-family: ui-monospace, monospace; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ai-desk-actions { flex: none; display: flex; gap: 8px; align-items: center; }
+  .ai-desk-paste { flex: 1 1 auto; min-height: 0; width: 100%; box-sizing: border-box; resize: none; }
+
+  .hyp-form-desk { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; gap: 12px; margin: 0; padding: 0; border: 0; box-shadow: none; background: none; overflow: hidden; }
+  .hyp-form-desk-head { flex: none; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+  .hyp-form-desk-head h3 { margin: 0; font-size: 17px; }
+  .hyp-form-desk-steps { list-style: none; margin: 0; padding: 0; display: flex; gap: 6px; }
+  .hyp-form-desk .form-error { flex: none; margin: 0; }
+  .hyp-form-desk-body { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; gap: 12px; overflow: hidden; }
+  .hyp-form-desk-body textarea { resize: none; }
+  .hyp-form-desk .step-fieldset { margin: 0; }
+  .hyp-form-desk-nav { flex: none; display: flex; align-items: center; justify-content: space-between; }
+  .atd > .view-header, .hyp-desk > .view-header { padding: 14px 24px; }
+  .atd > .view-header h2, .hyp-desk > .view-header h2 { margin: 2px 0 0; font-size: 26px; }
+  .hdp-overview .status-change-form { margin: 0; gap: 6px; padding: 8px 10px; }
+  .hdp-overview .status-change-form h5 { margin: 0; font-size: 13px; }
+  .hdp-overview .status-change-form label { display: grid; gap: 4px; font-size: 13px; }
+  .hdp-overview .status-btn-group { margin-top: 6px; }
+}

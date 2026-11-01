@@ -1,6 +1,73 @@
 import type { AppState } from '../domain/types';
 import { CATEGORY_LABELS } from '../ui/labels';
 import type { View } from '../components/shell/nav';
+import { useIsDesktop } from '../hooks/useIsDesktop';
+import { useFitCount } from '../hooks/useFitCount';
+import { usePaged } from '../hooks/usePaged';
+import { Pager } from '../components/desktop/Pager';
+
+const STATUS_LABELS = { adopted: '✓ 採用', watching: '👁 様子見', rejected: '✕ 棄却', needs_test: '🧪 要検証' } as const;
+
+function PagedColumn<T>({ eyebrow, title, items, label, empty, render }: {
+  eyebrow: string; title: string; items: T[]; label: string; empty: string;
+  render: (item: T) => React.ReactNode;
+}) {
+  const [ref, count] = useFitCount<HTMLDivElement>(56);
+  const { page, pageCount, pageItems, setPage } = usePaged(items, count);
+  return (
+    <article className="dash-col">
+      <div className="card-header">
+        <p className="eyebrow">{eyebrow}</p>
+        <h3>{title}</h3>
+      </div>
+      <div className="fit-area" ref={ref}>
+        {items.length === 0 && <p className="empty-msg">{empty}</p>}
+        {pageItems.map(render)}
+      </div>
+      <Pager page={page} pageCount={pageCount} onChange={setPage} label={label} />
+    </article>
+  );
+}
+
+function DesktopBody({ state }: { state: AppState }) {
+  const count = (s: string) => state.hypotheses.filter(h => h.status === s).length;
+  return (
+    <div className="view-body dash-body">
+      <div className="stat-grid">
+        <div className="stat-card stat-total"><div className="stat-value">{state.hypotheses.length}</div><p className="stat-label">仮説 合計</p></div>
+        <div className="stat-card stat-adopted"><div className="stat-value">{count('adopted')}</div><p className="stat-label">✓ 採用</p></div>
+        <div className="stat-card stat-watching"><div className="stat-value">{count('watching')}</div><p className="stat-label">👁 様子見</p></div>
+        <div className="stat-card stat-needs-test"><div className="stat-value">{count('needs_test')}</div><p className="stat-label">🧪 要検証</p></div>
+      </div>
+      <div className="dash-cols">
+        <PagedColumn eyebrow="Events" title="注目イベント" label="注目イベント" empty="イベントがありません"
+          items={state.events}
+          render={ev => (
+            <div className="row-item" key={ev.id}>
+              <span><span className={`badge badge-${ev.category}`}>{CATEGORY_LABELS[ev.category] ?? ev.category}</span> {ev.title}</span>
+              <span className="row-sub">{ev.summary}</span>
+            </div>
+          )} />
+        <PagedColumn eyebrow="Themes" title="日本株テーマ" label="日本株テーマ" empty="テーマがありません"
+          items={state.themes}
+          render={theme => (
+            <div className="row-item" key={theme.id}>
+              <strong>{theme.name}</strong>
+              <span className="row-sub">{theme.examples.join(' / ')}</span>
+            </div>
+          )} />
+        <PagedColumn eyebrow="Hypotheses" title={`仮説サマリー — ${state.hypotheses.length} 件`} label="仮説サマリー" empty="仮説がありません"
+          items={state.hypotheses}
+          render={h => (
+            <div className="row-item" key={h.id}>
+              <span><span className={`status-pill status-${h.status}`}>{STATUS_LABELS[h.status]}</span> {h.title}</span>
+              <span className="row-sub">{h.associationSteps[0]?.label} → … → {h.associationSteps[h.associationSteps.length - 1]?.label}</span>
+            </div>
+          )} />
+      </div>
+    </div>
+  );
+}
 
 type DashboardProps = {
   state: AppState;
@@ -15,9 +82,10 @@ export function DashboardView({ state, onLoadSample, onNavigate }: DashboardProp
   const needsTest = state.hypotheses.filter(h => h.status === 'needs_test').length;
 
   const isEmpty = state.events.length === 0 && state.hypotheses.length === 0;
+  const isDesktop = useIsDesktop();
 
   return (
-    <>
+    <div className="view-root dash-root">
       <header className="view-header">
         <p className="eyebrow">Global Event → Japan Market Reaction</p>
         <h2>ニュースから連想ツリーを作り、日本市場の仮説へ落とす</h2>
@@ -47,6 +115,8 @@ export function DashboardView({ state, onLoadSample, onNavigate }: DashboardProp
             <button className="btn btn-ghost" onClick={() => onNavigate('event-input')}>最初のイベントを追加する</button>
           </div>
         </div>
+      ) : isDesktop ? (
+        <DesktopBody state={state} />
       ) : (
         <>
           <div className="stat-grid">
@@ -112,7 +182,7 @@ export function DashboardView({ state, onLoadSample, onNavigate }: DashboardProp
               {state.hypotheses.map(h => (
                 <div className="list-item" key={h.id}>
                   <span className={`status-pill status-${h.status}`}>
-                    {{ adopted: '✓ 採用', watching: '👁 様子見', rejected: '✕ 棄却', needs_test: '🧪 要検証' }[h.status]}
+                    {STATUS_LABELS[h.status]}
                   </span>
                   <h4>{h.title}</h4>
                   <p>{h.associationSteps[0]?.label} → … → {h.associationSteps[h.associationSteps.length - 1]?.label}</p>
@@ -122,7 +192,7 @@ export function DashboardView({ state, onLoadSample, onNavigate }: DashboardProp
           </article>
         </>
       )}
-    </>
+    </div>
   );
 }
 

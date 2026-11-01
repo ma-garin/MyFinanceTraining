@@ -5,7 +5,7 @@ import { findCacheEntry, addCacheEntry } from '../infrastructure/aiStorage';
 import { decideAiApply } from '../application/aiApply';
 import { isoToTokyoDateStr } from '../utils/dateUtils';
 
-const PROMPT_TYPES: { value: AiPromptType; label: string; desc: string }[] = [
+export const PROMPT_TYPES: { value: AiPromptType; label: string; desc: string }[] = [
   { value: 'association_expand', label: '連想を深掘り', desc: '3〜5段階目の追加連想を生成' },
   { value: 'counter_scenario', label: '失敗条件を追加', desc: '反対シナリオ・失敗条件を生成' },
   { value: 'missing_angle', label: '見落とし観点', desc: '見落としている観点を失敗条件として生成' },
@@ -19,8 +19,8 @@ type Props = {
   onApply: (steps: { label: string; reason: string }[], conditions: string[]) => void;
 };
 
-export function AiDeepDive({ hypothesis, event, canExecute, onIncrement, onApply }: Props) {
-  const [open, setOpen] = useState(false);
+// PC 用の段組み（AiDeepDiveDesktop）と同じ取り込み判定を使うため、状態と操作を共有する
+export function useAiDeepDive({ hypothesis, event, canExecute, onIncrement, onApply }: Props) {
   const [promptType, setPromptType] = useState<AiPromptType>('association_expand');
   const [pasted, setPasted] = useState('');
   const [applied, setApplied] = useState(false);
@@ -70,6 +70,16 @@ export function AiDeepDive({ hypothesis, event, canExecute, onIncrement, onApply
     if (cached) setPasted(cached.result);
   };
 
+  const selectType = (t: AiPromptType) => { setPromptType(t); setPasted(''); setApplied(false); };
+
+  return { promptType, selectType, pasted, setPasted, applied, copied, message, cached, prompt, handleCopy, handleApply, loadCached };
+}
+
+export function AiDeepDive(props: Props) {
+  const { canExecute } = props;
+  const [open, setOpen] = useState(false);
+  const { promptType, selectType, pasted, setPasted, applied, copied, message, cached, prompt, handleCopy, handleApply, loadCached } = useAiDeepDive(props);
+
   if (!open) {
     return (
       <button className="btn btn-ai" onClick={() => setOpen(true)}>
@@ -94,7 +104,7 @@ export function AiDeepDive({ hypothesis, event, canExecute, onIncrement, onApply
           <button
             key={pt.value}
             className={`ai-tab${promptType === pt.value ? ' active' : ''}`}
-            onClick={() => { setPromptType(pt.value); setPasted(''); setApplied(false); }}
+            onClick={() => selectType(pt.value)}
           >
             {pt.label}
             <span className="ai-tab-desc">{pt.desc}</span>

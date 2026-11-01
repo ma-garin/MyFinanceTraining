@@ -14,7 +14,11 @@ export default defineConfig({
     serviceWorkers: 'block',
     trace: 'retain-on-failure',
   },
-  projects: [{ name: 'chromium', use: { ...devices['Pixel 7'] } }],
+  projects: [
+    { name: 'chromium', use: { ...devices['Pixel 7'] }, testIgnore: /desktop/ },
+    // PC 幅（1366x768 のノート PC でブラウザの枠を除いた高さ）。画面スクロールなしの作りを確かめる
+    { name: 'desktop', use: { viewport: { width: 1366, height: 657 } }, testMatch: /desktop/ },
+  ],
   webServer: {
     command: `npm run build && npx vite preview --port ${PORT} --strictPort --host 127.0.0.1`,
     url: `http://127.0.0.1:${PORT}/MyFinanceTraining/`,

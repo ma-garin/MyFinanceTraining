@@ -1,0 +1,12 @@
+/* PC（961px 以上）の backtest 画面。styles/desktop.css の共通枠の上に足す */
+@media (min-width: 961px) {
+  .bt-root .split-pane { grid-template-columns: minmax(300px, 380px) minmax(0, 1fr); }
+  .bt-root .bt-textarea { flex: 1 1 auto; min-height: 0; resize: none; font-size: 13px; font-family: ui-monospace, SFMono-Regular, monospace; box-sizing: border-box; width: 100%; }
+  .bt-root .bt-hint { font-size: 13px; color: var(--text-2); margin: 0; }
+  .bt-root .bt-ids { overflow: hidden; }
+  .bt-root .bt-fit { overflow: hidden; }
+  .bt-root .bt-table th, .bt-root .bt-table td { height: 32px; box-sizing: border-box; padding: 0 8px; font-size: 13px; text-transform: none; letter-spacing: 0; }
+  .bt-root .bt-table th { font-size: 12px; }
+  .bt-root .bt-cell-id { max-width: 220px; overflow: hidden; text-overflow: ellipsis; }
+  .bt-root .bt-cell-note { max-width: 160px; overflow: hidden; text-overflow: ellipsis; }
+}

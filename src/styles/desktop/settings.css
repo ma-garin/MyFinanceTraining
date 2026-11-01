@@ -1,0 +1,10 @@
+/* PC（961px 以上）の settings 画面。styles/desktop.css の共通枠の上に足す */
+@media (min-width: 961px) {
+  .settings-body { display: flex; flex-direction: column; gap: 14px; }
+  .settings-body .card { margin: 0; }
+}
+@media (min-width: 961px) {
+  .settings-root > .view-header { padding: 14px 24px; }
+  .settings-root > .view-header h2 { margin: 2px 0 0; }
+  .settings-body .card { padding: 16px 20px; }
+}

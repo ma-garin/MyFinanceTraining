@@ -1,5 +1,11 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import type { AppState } from '../domain/types';
+import { useIsDesktop } from '../hooks/useIsDesktop';
+import { useFitCount } from '../hooks/useFitCount';
+import { usePaged } from '../hooks/usePaged';
+import { Pager } from '../components/desktop/Pager';
+import { SplitPane } from '../components/desktop/SplitPane';
+import { Tabs } from '../components/desktop/Tabs';
 import { STATUS_LABELS } from '../ui/labels';
 import {
   formatRate, hypothesisStats, monthlyReview, statusTimeline, themeStats, toMarkdown,
@@ -9,6 +15,26 @@ const currentMonth = (): string => {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
 };
+
+const ROW_H = 40;
+const HIST_H = 64;
+
+// 枠に収まる行数ずつページ送りする（PC で枠内スクロールを出さない）
+function PagedRows<T>({ items, rowHeight, label, empty, header, render }: {
+  items: T[]; rowHeight: number; label: string; empty?: string; header?: ReactNode;
+  render: (item: T, i: number) => ReactNode;
+}) {
+  const [ref, count] = useFitCount<HTMLDivElement>(rowHeight);
+  const { page, pageCount, pageItems, setPage } = usePaged(items, count);
+  if (items.length === 0 && empty) return <p className="empty-msg">{empty}</p>;
+  return (
+    <>
+      {header}
+      <div className="fit-area" ref={ref}>{pageItems.map(render)}</div>
+      <Pager page={page} pageCount={pageCount} onChange={setPage} label={label} />
+    </>
+  );
+}
 
 export function ReportView({ state }: { state: AppState }) {
   const [month, setMonth] = useState(currentMonth);
@@ -32,6 +58,79 @@ export function ReportView({ state }: { state: AppState }) {
       setError('ダウンロードに失敗しました。時間をおいてもう一度お試しください。');
     }
   };
+
+  const isDesktop = useIsDesktop();
+
+  if (isDesktop) {
+    const hyps = state.hypotheses;
+    const tabs = [
+      {
+        id: 'hyp', label: '仮説別',
+        content: (
+          <PagedRows items={hyps} rowHeight={ROW_H} label="仮説別成績"
+            header={<div className="rp-grid rp-head rp-hyp"><span>仮説</span><span>状態</span><span>的中</span><span>外れ</span><span>未判定</span><span>的中率</span></div>}
+            render={h => {
+              const st = hypothesisStats(h);
+              return (
+                <div className="rp-grid rp-row rp-hyp" key={h.id}>
+                  <span title={h.title}>{h.title}</span>
+                  <span><span className={`status-pill status-${h.status}`}>{STATUS_LABELS[h.status]}</span></span>
+                  <span>{st.hit}</span><span>{st.miss}</span><span>{st.pending}</span><span>{formatRate(st.hitRate)}</span>
+                </div>
+              );
+            }} />
+        ),
+      },
+      {
+        id: 'theme', label: 'テーマ別',
+        content: (
+          <PagedRows items={themes} rowHeight={ROW_H} label="テーマ別成績"
+            header={<div className="rp-grid rp-head rp-theme"><span>テーマ</span><span>仮説数</span><span>的中</span><span>外れ</span><span>的中率</span></div>}
+            render={t => (
+              <div className="rp-grid rp-row rp-theme" key={t.themeId}>
+                <span title={t.name}>{t.name}</span><span>{t.hypotheses}</span><span>{t.hit}</span><span>{t.miss}</span><span>{formatRate(t.hitRate)}</span>
+              </div>
+            )} />
+        ),
+      },
+      {
+        id: 'history', label: '採否履歴',
+        content: (
+          <PagedRows items={timeline} rowHeight={HIST_H} label="採否履歴" empty="まだ採否の変更履歴はありません"
+            render={(c, i) => (
+              <div className="rp-hist" key={`${c.hypothesisTitle}-${c.date}-${i}`}>
+                <strong>{c.hypothesisTitle}</strong>
+                <span>{c.date.slice(0, 10)} {STATUS_LABELS[c.from]} → {STATUS_LABELS[c.to]}</span>
+                <span>理由: {c.reason}</span>
+              </div>
+            )} />
+        ),
+      },
+    ];
+    return (
+      <div className="report-view view-root">
+        <header className="view-header">
+          <h2>レポート</h2>
+          <p>検証ログと採否の変更履歴から、仮説の成績を振り返ります。</p>
+        </header>
+        <SplitPane listLabel="月次レビュー" detailLabel="成績と履歴"
+          list={(
+            <>
+              <h3>月次レビュー</h3>
+              <label>
+                対象月{' '}
+                <input type="month" value={month} onChange={e => e.target.value && setMonth(e.target.value)} />
+              </label>
+              <p>検証ログ {review.logs} 件（的中 {review.hit} / 外れ {review.miss}）</p>
+              <p>ステータス変更 {review.statusChanges} 件（採用 {review.adopted} / 棄却 {review.rejected}）</p>
+              <button className="btn btn-primary" onClick={download}>Markdownをダウンロード</button>
+              {error && <p role="alert">{error}</p>}
+            </>
+          )}
+          detail={<Tabs label="レポートの表示切替" tabs={tabs} />} />
+      </div>
+    );
+  }
 
   return (
     <div className="report-view">

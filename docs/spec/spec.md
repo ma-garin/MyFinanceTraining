@@ -107,6 +107,12 @@
 | `src/components/HypothesisCard.tsx` | 259 | 仮説カード（表示・ステータス・削除・検証ログ・AI） | FR-HY, FR-VL, FR-AI |
 | `src/components/AiDeepDive.tsx` | 116 | AI 深掘りパネル | FR-AI |
 | `src/components/EventTree.tsx` | 136 | イベント→仮説のツリー表示 | FR-TR |
+| `src/hooks/{useIsDesktop,usePaged,useFitCount}.ts` | 19/22/20 | PC 判定（`min-width: 961px`）・ページ送り・枠に収まる行数の計測 | NFR-DESK |
+| `src/components/desktop/{Pager,SplitPane,Tabs}.tsx` | 17/17/36 | PC のページ送り・一覧＋詳細の 2 ペイン・タブ | NFR-DESK |
+| `src/components/{PagedRows,HypothesisDetailPane,AiDeepDiveDesktop,HypothesisFormDesktop}.tsx` | 41/130/96/60 | PC の行ページ送り・仮説詳細タブ 7 種・AI 深掘り・4 段の仮説フォーム | NFR-DESK, FR-HY, FR-AI |
+| `src/views/{AssociationTreeDesktop,HypothesisDetailDesktop}.tsx` | 131/66 | 連想ツリー・仮説詳細の PC 版 | NFR-DESK |
+| `src/styles/desktop.css`・`src/styles/desktop/*.css` | 86/— | PC で画面全体・各枠のスクロールを止めるレイアウト | NFR-DESK |
+| `scripts/check-no-scroll.mjs` | 84 | 7 画面 × 2 データ × 3 解像度のスクロール検査 | NFR-DESK |
 | `public/sw.js` | — | Service Worker（navigation は network-first、静的資産は SWR） | NFR-PWA |
 | `src/**/*.test.ts(x)`・`src/test/`・`playwright.config.ts`・`eslint.config.js` | — | テスト・lint 設定 | NFR-QA |
 
@@ -411,6 +417,7 @@ ID は本ファイル内で採番。`docs/requirements.md` の番号との対応
 | ID | 項目 | 現状 |
 |---|---|---|
 | NFR-PWA | オフライン・ホーム画面追加 | `sw.js`（キャッシュ名 `my-finance-training-v4`）: install でルートと manifest を事前キャッシュ、navigation は network-first（オフライン時はキャッシュ）、静的資産は Stale-While-Revalidate。install の無条件 skipWaiting は廃止し、message `SKIP_WAITING` で skipWaiting する。`swUpdate.ts` が待機中の SW を検知し、`UpdateBanner` が「新しいバージョンがあります」「更新する」を表示。更新時は `controllerchange` で 1 回だけ reload。manifest は standalone・SVG アイコン 1 つ |
+| NFR-DESK | PC 幅（961px 以上）でスクロールしない | 画面全体も各枠も縦スクロールしない。一覧は枠に収まる件数ずつページ送り、詳細は 1 件をタブで切り替える（一覧＋詳細の 2 ペイン）。例外はバックテストの CSV 入力欄（長文を貼ったときの内部スクロール）。PC 版は EventTree の「🌲 ツリー表示」を出さない。検査: `scripts/check-no-scroll.mjs`（1280x650・1366x657・1920x969）と E2E `06-desktop-no-scroll` |
 | NFR-MOB | スマホ幅 | モバイルヘッダー＋ボトムナビ。表は横スクロール。最大幅 520px での確認が開発規約 |
 | NFR-SEC | 秘密情報 | APIキーを扱わない（AI は手動コピー）。外部通信なし |
 | NFR-PRIV | データの所在 | 端末の localStorage のみ。端末間同期なし |
@@ -472,3 +479,4 @@ severity は ISTQB の分類（Critical / High / Medium / Low）。v0.2 で解�
 | 2026-11-01 | v0.2（`chore/v0.2-stabilization`） | 安定化。テスト基盤（Vitest / Playwright / ESLint）導入、`App.tsx` を views/shell に分割、依存固定。解消: BUG-01（canExecute を `decideAiApply` と UI で判定）／02（0 件・全件重複は usage・cache を更新せず理由表示）／03（depth 一意化）／04（Asia/Tokyo 統一）／05（index key・冪等な取り込み）／06（corrupt 時は保存停止＋復旧画面）／07（saveError バナー）／08（手動コピー案内）／09（import 確認パネル）／10（`worstT5Return` へ改名）／11（SW v3・network-first）／12（詳細画面の選択フォールバック）。新規発見の BUG-13（CSV の桁区切り付き終値を 7 と誤読。桁区切りを除去し、数値として読めない値・列数が 3 でない行は除外して解消）と BUG-19（index.html の manifest/icon が base を二重付与し PWA manifest が読めない。Vite に base を付けさせて解消）を解消。BUG-14〜18（Low）を追加。独立レビューの指摘を解消: 保存データの null 要素・配列でない steps で白画面（`sanitizeState` で除去）／4 列以上・行末カンマの CSV が全行除外（ヘッダ列数まで許容）／詳細画面で仮説を切り替えても AI 貼り付け内容が残る（`key`）／初回直後のオフライン起動で JS 未キャッシュ（SW install で HTML の資産を事前キャッシュ）／読み取り失敗時の初期化で実データを上書き（初期化前に読み直して退避）。BUG-20・21（Low）を追加。ADR-0001〜0003 |
 | 2026-11-01 | v0.2 追補（`fix/v0.2-low-bugs`） | Low を解消: BUG-14（英数字キーワードは単語境界で照合）／15（連想の解析を最大 5 段で打ち切り）／16（`・` 始まりの行も拾う。番号除去を行頭に限定）／18（AI cache を最新 50 件に制限）／20（仮説更新前の連打を同期フラグで無視）／21（depth の飛び番を 1..n に詰め、AI 段は既存の最大 depth の後ろに追加） |
 | 2026-11-01 | v1.0（`feat/v1.0`、package.json 1.0.0） | スキーマ版 2 と `migrateState`（RISK-03 解消）／インポート差分表示と「取り込みを元に戻す」（`replaceState` 1 世代保持）／採否の理由と履歴（`StatusChange`・FR-HY-11）／AI `missing_angle`／バックテスト最大DD（FR-BT-05/08）／レポート画面（FR-RP）／SW v4 と更新通知バナー／IndexedDB 見送り（ADR-0004）。テスト: 単体 156 件・E2E 5 件（E2E-01 理由入力、E2E-03 差分と元に戻す、E2E-05 レポート）。レポートのスマホ幅で表が画面を押し広げた不具合は `.report-view` の `min-width:0` で解消 |
+| 2026-11-01 | `feat/desktop-no-scroll` | PC 幅のスクロールなしレイアウト（NFR-DESK）。7 画面を一覧＋詳細の 2 ペイン・ページ送り・タブに変更（スマホ幅は従来どおり）。`swUpdate` が監視開始時にインストール中の SW も追う。テスト: 単体 170 件・E2E 7 件（PC 幅 2 件）・`check-no-scroll` NG=0/42 |

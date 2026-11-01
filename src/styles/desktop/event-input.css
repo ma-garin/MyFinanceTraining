@@ -1,0 +1,13 @@
+/* PC（961px 以上）の event-input 画面。styles/desktop.css の共通枠の上に足す */
+@media (min-width: 961px) {
+  .event-input-view .split-detail .form-panel { margin: 0; box-shadow: none; border: none; padding: 0; gap: 10px; }
+  .event-input-view .split-detail .form-panel textarea { resize: none; }
+  .event-input-view .event-detail { display: flex; flex-direction: column; gap: 10px; min-height: 0; overflow: hidden; }
+  .event-input-view .event-detail h3 { margin: 0; font-size: 18px; }
+  .event-input-view .event-detail-new { margin-left: auto; }
+  .event-input-view .event-detail-summary {
+    margin: 0; font-size: 14px; line-height: 1.6;
+    display: -webkit-box; -webkit-line-clamp: 12; -webkit-box-orient: vertical; overflow: hidden;
+  }
+  .event-input-view .event-detail-actions { display: flex; gap: 8px; }
+}
