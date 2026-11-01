@@ -1,116 +1,47 @@
 import { useState } from 'react';
 import type { MarketEvent, Hypothesis } from '../domain/types';
-import { STATUS_COLOR, statusWithIcon, categoryLabel } from '../ui/labels';
-
-
-
+import { categoryLabel } from '../ui/labels';
+import { AssociationFlow } from './AssociationFlow';
 
 type Props = {
   events: MarketEvent[];
   hypotheses: Hypothesis[];
 };
 
-function HypBranch({ h, expanded, onToggle }: {
-  h: Hypothesis;
-  expanded: boolean;
-  onToggle: () => void;
-}) {
-  return (
-    <div className="tree-hyp-item">
-      <button
-        className={`tree-hyp-node${expanded ? ' expanded' : ''}`}
-        style={{ borderLeftColor: STATUS_COLOR[h.status] }}
-        onClick={onToggle}
-      >
-        <span style={{ color: STATUS_COLOR[h.status], fontSize: 11, fontWeight: 800, flexShrink: 0 }}>
-          {statusWithIcon(h.status)}
-        </span>
-        <span className="tree-hyp-title">{h.title}</span>
-        <span className="tree-expand-icon">{expanded ? '▲' : '▼'}</span>
-      </button>
-      {expanded && (
-        <div className="tree-step-list">
-          {h.associationSteps.map((step, i) => (
-            <div key={`${step.depth}-${i}`} className="tree-step-item">
-              <span className="step-num" style={{ width: 28, height: 28, fontSize: 12 }}>{step.depth}</span>
-              <div>
-                <p className="step-label">{step.label}</p>
-                {step.reason && <p className="step-reason">{step.reason}</p>}
-              </div>
-            </div>
-          ))}
-          {h.invalidationConditions.length > 0 && (
-            <div style={{ padding: '8px 0 0', borderTop: '1px dashed var(--border)', marginTop: 4 }}>
-              <p className="eyebrow" style={{ marginBottom: 4 }}>失敗条件</p>
-              {h.invalidationConditions.map((c, i) => (
-                <p key={`${i}-${c}`} style={{ margin: '2px 0', fontSize: 12, color: 'var(--text-3)' }}>✕ {c}</p>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  );
+const UNLINKED = '__unlinked__';
+
+type Option = { id: string; label: string; hyps: Hypothesis[] };
+
+function buildOptions(events: MarketEvent[], hypotheses: Hypothesis[]): Option[] {
+  const opts = events.map(ev => ({
+    id: ev.id,
+    label: `${ev.title}（${categoryLabel(ev.category)}・${ev.occurredAt}）`,
+    hyps: hypotheses.filter(h => h.eventId === ev.id),
+  }));
+  const unlinked = hypotheses.filter(h => !events.some(e => e.id === h.eventId));
+  return unlinked.length > 0 ? [...opts, { id: UNLINKED, label: 'イベント未紐付け', hyps: unlinked }] : opts;
 }
 
+// スマホ用。イベントを 1 件ずつ選び、そのイベントから出た仮説の連想を縦のフローで見せる
 export function EventTree({ events, hypotheses }: Props) {
-  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const options = buildOptions(events, hypotheses);
+  const firstWithHyp = options.find(o => o.hyps.length > 0) ?? options[0];
+  const [pickedId, setPickedId] = useState<string | null>(null);
+  const picked = options.find(o => o.id === pickedId) ?? firstWithHyp;
 
-  const toggle = (id: string) => setExpandedId(prev => prev === id ? null : id);
-
-  const unlinked = hypotheses.filter(h => !events.find(e => e.id === h.eventId));
+  if (!picked) return <div className="event-tree"><p className="empty-msg">イベントと仮説を登録するとツリーが表示されます</p></div>;
 
   return (
     <div className="event-tree">
-      {events.map(ev => {
-        const evHyps = hypotheses.filter(h => h.eventId === ev.id);
-        return (
-          <div key={ev.id} className="tree-event-block">
-            <div className="tree-event-node">
-              <span className={`badge badge-${ev.category}`}>
-                {categoryLabel(ev.category)}
-              </span>
-              <p className="tree-event-title">{ev.title}</p>
-              <span className="date-label">{ev.occurredAt}</span>
-              {evHyps.length === 0 && <span className="tree-no-hyp">仮説なし</span>}
-            </div>
-            {evHyps.length > 0 && (
-              <div className="tree-hyp-list">
-                {evHyps.map(h => (
-                  <HypBranch
-                    key={h.id}
-                    h={h}
-                    expanded={expandedId === h.id}
-                    onToggle={() => toggle(h.id)}
-                  />
-                ))}
-              </div>
-            )}
-          </div>
-        );
-      })}
-
-      {unlinked.length > 0 && (
-        <div className="tree-event-block">
-          <div className="tree-event-node">
-            <p className="eyebrow" style={{ margin: 0 }}>イベント未紐付け</p>
-          </div>
-          <div className="tree-hyp-list">
-            {unlinked.map(h => (
-              <HypBranch
-                key={h.id}
-                h={h}
-                expanded={expandedId === h.id}
-                onToggle={() => toggle(h.id)}
-              />
-            ))}
-          </div>
-        </div>
-      )}
-
-      {events.length === 0 && hypotheses.length === 0 && (
-        <p className="empty-msg">イベントと仮説を登録するとツリーが表示されます</p>
-      )}
+      <label className="aflow-event-pick">
+        <span className="eyebrow">イベント</span>
+        <select value={picked.id} onChange={e => setPickedId(e.target.value)}>
+          {options.map(o => <option key={o.id} value={o.id}>{o.label}・仮説 {o.hyps.length} 件</option>)}
+        </select>
+      </label>
+      {picked.hyps.length === 0
+        ? <p className="tree-no-hyp">仮説なし</p>
+        : <AssociationFlow key={picked.id} events={events} hypotheses={picked.hyps} layout="vertical" />}
     </div>
   );
 }

@@ -4,6 +4,7 @@ import { statusWithIcon, URGENCY_LABELS } from '../ui/labels';
 import { SplitPane } from '../components/desktop/SplitPane';
 import { PagedRows } from '../components/PagedRows';
 import { HypothesisDetailPane } from '../components/HypothesisDetailPane';
+import { HypothesisCompare, ViewModeToggle, type HypothesisViewMode } from '../components/HypothesisCompare';
 
 type Props = {
   state: AppState;
@@ -15,9 +16,11 @@ type Props = {
   onAddLog: (id: string, log: Omit<VerificationLog, 'id'>) => void;
 };
 
-// PC: 左に仮説一覧（ページ送り）、右に選んだ 1 件の詳細。画面も枠もスクロールさせない
+// PC: 左に仮説一覧（ページ送り）、右に選んだ 1 件の詳細。比較表へ切り替えられる。画面も枠もスクロールさせない
 export function HypothesisDetailDesktop({ state, onStatusChange, onDelete, canExecuteAi, onAiIncrement, onAiApply, onAddLog }: Props) {
   const [selectedId, setSelectedId] = useState('');
+  const [mode, setMode] = useState<HypothesisViewMode>('list');
+  const openDetail = (id: string) => { setSelectedId(id); setMode('list'); };
   // 選択中の仮説が削除・インポートで消えても先頭へ落とし、一覧の選択と詳細を一致させる（BUG-12）
   const hypothesis = state.hypotheses.find(h => h.id === selectedId) ?? state.hypotheses[0];
   const currentId = hypothesis?.id ?? '';
@@ -56,11 +59,16 @@ export function HypothesisDetailDesktop({ state, onStatusChange, onDelete, canEx
 
   return (
     <div className="view-root hyp-desk">
-      <header className="view-header">
-        <p className="eyebrow">Hypothesis Detail</p>
-        <h2>仮説詳細・ステータス管理</h2>
+      <header className="view-header hc-header">
+        <div>
+          <p className="eyebrow">Hypothesis Detail</p>
+          <h2>仮説詳細・ステータス管理</h2>
+        </div>
+        <ViewModeToggle mode={mode} onChange={setMode} />
       </header>
-      <SplitPane list={list} detail={detail} listLabel="仮説一覧" detailLabel="仮説の詳細" />
+      {mode === 'list'
+        ? <SplitPane list={list} detail={detail} listLabel="仮説一覧" detailLabel="仮説の詳細" />
+        : <HypothesisCompare hypotheses={state.hypotheses} onOpen={openDetail} />}
     </div>
   );
 }

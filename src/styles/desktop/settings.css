@@ -8,3 +8,7 @@
   .settings-root > .view-header h2 { margin: 2px 0 0; }
   .settings-body .card { padding: 16px 20px; }
 }
+@media (min-width: 961px) {
+  .api-card .form-group { margin-bottom: 10px; }
+  .api-card .api-notes { margin-bottom: 10px; }
+}

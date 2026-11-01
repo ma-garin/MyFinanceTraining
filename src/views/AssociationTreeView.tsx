@@ -66,7 +66,7 @@ function AssociationTreeMobile({ state, onAdd, onStatusChange, onDelete, canExec
           {showForm ? '閉じる' : '＋ 仮説を追加'}
         </button>
         <button className="btn btn-ghost" onClick={() => setShowTree(v => !v)}>
-          {showTree ? 'ツリーを閉じる' : '🌲 ツリー表示'}
+          {showTree ? '連想フローを閉じる' : '🌲 連想フロー'}
         </button>
       </div>
       {showForm && <HypothesisForm events={state.events} onAdd={handleAdd} />}

@@ -5,6 +5,8 @@ import { SplitPane } from '../components/desktop/SplitPane';
 import { PagedRows } from '../components/PagedRows';
 import { HypothesisDetailPane } from '../components/HypothesisDetailPane';
 import { HypothesisFormDesktop } from '../components/HypothesisFormDesktop';
+import { Tabs } from '../components/desktop/Tabs';
+import { AssociationFlow } from '../components/AssociationFlow';
 
 type Props = {
   state: AppState;
@@ -70,6 +72,22 @@ export function AssociationTreeDesktop(props: Props) {
 
   const back = <button type="button" className="btn btn-ghost hdp-mini" onClick={() => setMode({ kind: 'list' })}>‹ 仮説一覧へ</button>;
 
+  const hypRows = (
+      <PagedRows
+        key={`${group.id}-${status}-${urgency}`}
+        items={filtered}
+        label="仮説一覧"
+        empty={scoped.length === 0 ? '仮説がありません。「仮説を追加」から登録してください。' : 'フィルター条件に一致する仮説がありません。'}
+        keyOf={h => h.id}
+        renderRow={h => (
+          <button type="button" className="row-item" title={h.title} onClick={() => setMode({ kind: 'detail', id: h.id })}>
+            <span>{h.title}</span>
+            <span className="row-sub">{statusWithIcon(h.status)}{h.urgency ? `\u3000${URGENCY_LABELS[h.urgency]}` : ''}</span>
+          </button>
+        )}
+      />
+  );
+
   const hypList = (
     <>
       <div className="atd-head">
@@ -91,18 +109,13 @@ export function AssociationTreeDesktop(props: Props) {
         </label>
         <p className="filter-count">{filtered.length} / {scoped.length} 件</p>
       </div>
-      <PagedRows
-        key={`${group.id}-${status}-${urgency}`}
-        items={filtered}
-        label="仮説一覧"
-        empty={scoped.length === 0 ? '仮説がありません。「仮説を追加」から登録してください。' : 'フィルター条件に一致する仮説がありません。'}
-        keyOf={h => h.id}
-        renderRow={h => (
-          <button type="button" className="row-item" title={h.title} onClick={() => setMode({ kind: 'detail', id: h.id })}>
-            <span>{h.title}</span>
-            <span className="row-sub">{statusWithIcon(h.status)}{h.urgency ? `\u3000${URGENCY_LABELS[h.urgency]}` : ''}</span>
-          </button>
-        )}
+      <Tabs
+        key={group.id}
+        label="仮説の表示方法"
+        tabs={[
+          { id: 'atd-flow', label: '連想フロー', content: <AssociationFlow key={`${group.id}-${status}-${urgency}`} events={state.events} hypotheses={filtered} layout="horizontal" onOpenHypothesis={id => setMode({ kind: 'detail', id })} /> },
+          { id: 'atd-list', label: '仮説一覧', content: hypRows },
+        ]}
       />
     </>
   );

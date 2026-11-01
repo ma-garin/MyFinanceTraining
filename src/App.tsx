@@ -156,7 +156,7 @@ export default function App() {
         {view === 'dashboard' && (
           <DashboardView state={state} onLoadSample={handleLoadSample} onNavigate={setView} />
         )}
-        {view === 'event-input' && <EventInputView state={state} onAdd={addEvent} onDelete={handleDeleteEvent} />}
+        {view === 'event-input' && <EventInputView state={state} onAdd={addEvent} onDelete={handleDeleteEvent} onAddHypothesis={addHypothesis} />}
         {view === 'association-tree' && (
           <AssociationTreeView
             state={state}
