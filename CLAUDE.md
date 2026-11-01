@@ -31,19 +31,21 @@ npm run preview   # ビルド後のプレビュー
 
 ## ディレクトリ構造
 
+ファイル単位の責務は `docs/spec/spec.md` §2.2（ファイル地図）が真実源。概略:
+
 ```
 src/
-  domain/types.ts          # ドメイン型定義（MarketEvent, Hypothesis, etc.）
-  infrastructure/storage.ts # localStorage 読み書き抽象層
-  hooks/useStore.ts         # アプリ状態管理フック
-  data/sampleData.ts        # 初期サンプルデータ（initialState）
-  components/
-    EventForm.tsx           # イベント追加フォーム
-    HypothesisForm.tsx      # 仮説追加フォーム（5段階ステップ）
-    HypothesisCard.tsx      # 仮説カード + ステータスボタン
-  App.tsx                   # ビュー切り替え + レイアウト
-  styles.css                # 全スタイル
-  vite-env.d.ts             # Vite型参照
+  domain/          # 型・純粋ロジック（types, hypothesisRules, importDiff）
+  application/     # ユースケース判定（aiApply）
+  engine/          # ルールベース連想エンジン（rules, associationEngine）
+  services/        # AI プロンプト・CSV 解析・バックテスト・レポート
+  infrastructure/  # localStorage 保存（schema v2 移行）・AI 設定・SW 更新検知
+  hooks/           # useStore / useAiSettings / useToast
+  components/      # フォーム・カード・AI 深掘り・ツリー・shell（ナビ等）
+  views/           # 7 画面（Dashboard, EventInput, AssociationTree, HypothesisDetail, Backtest, Report, Settings）
+  ui/ utils/ data/ test/
+public/sw.js       # Service Worker
+e2e/               # Playwright（port 4179）
 ```
 
 ## データモデル
@@ -64,17 +66,10 @@ HypothesisStatus // 'adopted' | 'watching' | 'rejected' | 'needs_test'
 4. **投資助言文言を避ける**: 「仮説」「検証」「失敗条件」「判断補助」を使う
 5. **スマホ幅必須**: 全コンポーネントで `max-width: 520px` の表示確認
 
-## 実装済み Issue
+## 実装状況
 
-- [x] #1 Design docs
-- [x] #8 PWA foundation (React + Vite + TypeScript)
-- [x] #4 データモデル + localStorage + フォーム UI
-
-## 次の Issue
-
-- [ ] #5 ルールベース連想エンジン
-- [ ] #6 AI ディープダイブワークフロー（オプション）
-- [ ] #7 CSV バックテストワークフロー
+- v1.0.0 リリース済み（#4〜#7 のルールベース連想・AI 深掘り・CSV バックテスト・レポートを含む）。詳細は `docs/roadmap.md`
+- 既知の制約: バックテストの営業日計算は土日のみ除外し、祝日は考慮しない（BUG-17）
 
 ## コーディングルール
 
