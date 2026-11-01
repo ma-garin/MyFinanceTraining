@@ -2,33 +2,47 @@ import type { PriceRow, BacktestEventRow } from '../domain/types';
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
-// Handles quoted fields (e.g. "7,800.5")
-const parseQuotedCsv = (csv: string): string[][] => {
-  const rows: string[][] = [];
-  for (const line of csv.trim().split('\n').slice(1)) {
-    if (!line.trim()) continue;
-    const cols: string[] = [];
-    let inQuote = false;
-    let cur = '';
-    for (const ch of line) {
-      if (ch === '"') { inQuote = !inQuote; continue; }
-      if (ch === ',' && !inQuote) { cols.push(cur.trim()); cur = ''; }
-      else cur += ch;
-    }
-    cols.push(cur.trim());
-    rows.push(cols);
+const splitLine = (line: string): string[] => {
+  const cols: string[] = [];
+  let inQuote = false;
+  let cur = '';
+  for (const ch of line) {
+    if (ch === '"') { inQuote = !inQuote; continue; }
+    if (ch === ',' && !inQuote) { cols.push(cur.trim()); cur = ''; }
+    else cur += ch;
   }
-  return rows;
+  cols.push(cur.trim());
+  // 行末カンマの空列は列数の判定から外す
+  while (cols.length > 1 && cols[cols.length - 1] === '') cols.pop();
+  return cols;
 };
 
-export const parsePriceCsv = (csv: string): PriceRow[] =>
-  parseQuotedCsv(csv)
-    .filter(cols => cols.length >= 3 && DATE_RE.test(cols[0]) && cols[1] && cols[2])
-    .map(([date, ticker, close]) => ({ date, ticker, close: parseFloat(close) }))
+// Handles quoted fields (e.g. "7,800.5") and CRLF line endings
+const parseQuotedCsv = (csv: string): { width: number; rows: string[][] } => {
+  const lines = csv.trim().split(/\r?\n/);
+  const width = Math.max(3, splitLine(lines[0] ?? '').length);
+  const rows = lines.slice(1).filter(l => l.trim()).map(splitLine);
+  return { width, rows };
+};
+
+// 桁区切り付きの終値を parseFloat に渡すと "7,800.5" が 7 と誤読される（BUG-13）
+const NUMERIC_RE = /^-?\d+(\.\d+)?$/;
+const parseClose = (raw: string): number => {
+  const s = raw.replace(/,/g, '');
+  return NUMERIC_RE.test(s) ? Number(s) : Number.NaN;
+};
+
+// 列数がヘッダより多い行は引用符なしの桁区切りで列がずれた可能性があり、誤った終値を採用しないよう除外する
+export const parsePriceCsv = (csv: string): PriceRow[] => {
+  const { width, rows } = parseQuotedCsv(csv);
+  return rows
+    .filter(cols => cols.length >= 3 && cols.length <= width && DATE_RE.test(cols[0]) && cols[1] && cols[2])
+    .map(([date, ticker, close]) => ({ date, ticker, close: parseClose(close) }))
     .filter(r => !Number.isNaN(r.close) && r.close > 0);
+};
 
 export const parseEventCsv = (csv: string): BacktestEventRow[] =>
-  parseQuotedCsv(csv)
+  parseQuotedCsv(csv).rows
     .filter(cols => cols.length >= 3 && cols[0] && DATE_RE.test(cols[1]) && cols[2])
     .map(([hypothesisId, eventDate, ticker, notes = '']) => ({
       hypothesisId, eventDate, ticker, notes,

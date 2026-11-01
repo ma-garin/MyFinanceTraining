@@ -1,11 +1,12 @@
 import type { PriceRow, BacktestEventRow, BacktestResult } from '../domain/types';
 
+// 'YYYY-MM-DD' は UTC 0 時として解釈されるため、加算・曜日判定も UTC で揃えないと端末 TZ で日付がずれる
 const addBusinessDays = (dateStr: string, days: number): string => {
-  const d = new Date(dateStr);
+  const d = new Date(`${dateStr}T00:00:00Z`);
   let added = 0;
   while (added < days) {
-    d.setDate(d.getDate() + 1);
-    const dow = d.getDay();
+    d.setUTCDate(d.getUTCDate() + 1);
+    const dow = d.getUTCDay();
     if (dow !== 0 && dow !== 6) added++;
   }
   return d.toISOString().slice(0, 10);
@@ -63,7 +64,7 @@ export type BacktestSummary = {
   stdDev1: number;
   stdDev3: number;
   stdDev5: number;
-  maxDrawdown: number;
+  worstT5Return: number;
   sampleWarning: boolean;
 };
 
@@ -110,7 +111,7 @@ export const summarizeBacktest = (results: BacktestResult[]): BacktestSummary[] 
       stdDev1:       stdDev(v1),
       stdDev3:       stdDev(v3),
       stdDev5:       stdDev(v5),
-      maxDrawdown:   maxDD,
+      worstT5Return:   maxDD,
       sampleWarning: rows.length < 5,
     };
   });

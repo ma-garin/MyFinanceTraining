@@ -1,36 +1,76 @@
 import type { AppState } from '../domain/types';
+import { normalizeStepDepths } from '../domain/hypothesisRules';
+import { todayStr } from '../utils/dateUtils';
 
-const STORAGE_KEY = 'myfinancetraining_v1';
+export const STORAGE_KEY = 'myfinancetraining_v1';
+export const CORRUPT_BACKUP_PREFIX = 'myfinancetraining_v1_corrupt_';
 
-// Type guard to prevent crash on corrupted or old-schema localStorage data
-const isValidState = (obj: unknown): obj is AppState =>
+export type LoadResult =
+  | { kind: 'empty' }
+  | { kind: 'ok'; state: AppState }
+  | { kind: 'corrupt'; raw: string; reason: string };
+
+export const isValidState = (obj: unknown): obj is AppState =>
   obj != null &&
   typeof obj === 'object' &&
   'events'     in obj && Array.isArray((obj as AppState).events) &&
   'hypotheses' in obj && Array.isArray((obj as AppState).hypotheses) &&
   'themes'     in obj && Array.isArray((obj as AppState).themes);
 
-// Remove dangling eventId references (C-3: reference integrity)
-const sanitizeState = (s: AppState): AppState => {
-  const eventIds = new Set(s.events.map(e => e.id));
+const isRecord = (v: unknown): v is Record<string, unknown> => v != null && typeof v === 'object' && !Array.isArray(v);
+
+// 参照整合性（存在しない eventId）と depth 重複（BUG-03 の既存データ）を読み込み時に補正する。
+// null 要素や配列でない steps が残ると描画時に TypeError で白画面になるため、ここで除く
+export const sanitizeState = (s: AppState): AppState => {
+  const events = s.events.filter(e => isRecord(e) && typeof e.id === 'string');
+  const eventIds = new Set(events.map(e => e.id));
   return {
     ...s,
-    hypotheses: s.hypotheses.map(h => ({
+    events,
+    themes: s.themes.filter(isRecord),
+    hypotheses: s.hypotheses.filter(h => isRecord(h) && typeof h.id === 'string').map(h => ({
       ...h,
       eventId: eventIds.has(h.eventId) ? h.eventId : '',
+      associationSteps: normalizeStepDepths(Array.isArray(h.associationSteps) ? h.associationSteps.filter(isRecord) : []),
+      invalidationConditions: Array.isArray(h.invalidationConditions) ? h.invalidationConditions : [],
     })),
   };
 };
 
-export const loadState = (): AppState | null => {
+export const parseStateJson = (raw: string): { ok: true; state: AppState } | { ok: false; reason: string } => {
+  let parsed: unknown;
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return null;
-    const parsed: unknown = JSON.parse(raw);
-    if (!isValidState(parsed)) return null;
-    return sanitizeState(parsed);
+    parsed = JSON.parse(raw);
   } catch {
-    return null;
+    return { ok: false, reason: 'JSON として読み取れません' };
+  }
+  if (!isValidState(parsed)) return { ok: false, reason: 'データの形式が想定と異なります' };
+  try {
+    return { ok: true, state: sanitizeState(parsed) };
+  } catch {
+    return { ok: false, reason: 'データの形式が想定と異なります' };
+  }
+};
+
+// 破損データを null 扱いにすると初期データで上書き保存されて消える。corrupt として呼び出し側に止めさせる（BUG-06）
+export const loadState = (): LoadResult => {
+  let raw: string | null;
+  try {
+    raw = localStorage.getItem(STORAGE_KEY);
+  } catch {
+    return { kind: 'corrupt', raw: '', reason: 'ブラウザの保存領域を読み取れません' };
+  }
+  if (!raw) return { kind: 'empty' };
+  const r = parseStateJson(raw);
+  return r.ok ? { kind: 'ok', state: r.state } : { kind: 'corrupt', raw, reason: r.reason };
+};
+
+// 起動時に読めなかった本体を、初期化の直前に読み直して退避する。undefined は読み取り不能
+export const readRawState = (): string | null | undefined => {
+  try {
+    return localStorage.getItem(STORAGE_KEY);
+  } catch {
+    return undefined;
   }
 };
 
@@ -44,15 +84,38 @@ export const saveState = (state: AppState): boolean => {
   }
 };
 
-export const exportStateAsJson = (state: AppState): void => {
-  const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
-  const url  = URL.createObjectURL(blob);
-  const a    = document.createElement('a');
-  a.href     = url;
-  a.download = `myfinancetraining-${new Date().toISOString().slice(0, 10)}.json`;
-  a.click();
-  URL.revokeObjectURL(url);
+export const backupCorruptRaw = (raw: string, now: Date = new Date()): string | null => {
+  const key = `${CORRUPT_BACKUP_PREFIX}${now.getTime()}`;
+  try {
+    localStorage.setItem(key, raw);
+    return key;
+  } catch (err) {
+    console.error('corrupt backup failed:', err);
+    return null;
+  }
 };
+
+const downloadText = (text: string, filename: string): boolean => {
+  try {
+    const blob = new Blob([text], { type: 'application/json' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+    return true;
+  } catch (err) {
+    console.error('download failed:', err);
+    return false;
+  }
+};
+
+export const exportStateAsJson = (state: AppState): boolean =>
+  downloadText(JSON.stringify(state, null, 2), `myfinancetraining-${todayStr()}.json`);
+
+export const downloadCorruptRaw = (raw: string): boolean =>
+  downloadText(raw, `myfinancetraining-corrupt-${todayStr()}.json`);
 
 export const importStateFromJson = (
   file: File,
@@ -61,13 +124,11 @@ export const importStateFromJson = (
 ): void => {
   const reader = new FileReader();
   reader.onload = (e) => {
-    try {
-      const parsed: unknown = JSON.parse(e.target?.result as string);
-      if (!isValidState(parsed)) { onError('無効なファイル形式です'); return; }
-      onSuccess(sanitizeState(parsed));
-    } catch {
-      onError('JSONの解析に失敗しました');
-    }
+    const text = e.target?.result;
+    if (typeof text !== 'string') { onError('ファイルを読み取れませんでした'); return; }
+    const r = parseStateJson(text);
+    if (r.ok) onSuccess(r.state); else onError(r.reason);
   };
+  reader.onerror = () => onError('ファイルを読み取れませんでした');
   reader.readAsText(file);
 };

@@ -1,29 +1,9 @@
 import { useState } from 'react';
 import type { MarketEvent, Hypothesis } from '../domain/types';
+import { STATUS_COLOR, statusWithIcon, categoryLabel } from '../ui/labels';
 
-const STATUS_COLOR: Record<string, string> = {
-  adopted:    '#16a34a',
-  watching:   '#d97706',
-  rejected:   '#dc2626',
-  needs_test: '#7c3aed',
-};
 
-const STATUS_LABELS: Record<string, string> = {
-  adopted:    '✓ 採用',
-  watching:   '👁 様子見',
-  rejected:   '✕ 棄却',
-  needs_test: '🧪 要検証',
-};
 
-const CATEGORY_LABELS: Record<string, string> = {
-  geopolitics:   '地政学',
-  macro:         'マクロ',
-  commodity:     'コモディティ',
-  semiconductor: '半導体',
-  currency:      '為替',
-  consumer:      '消費者',
-  other:         'その他',
-};
 
 type Props = {
   events: MarketEvent[];
@@ -43,15 +23,15 @@ function HypBranch({ h, expanded, onToggle }: {
         onClick={onToggle}
       >
         <span style={{ color: STATUS_COLOR[h.status], fontSize: 11, fontWeight: 800, flexShrink: 0 }}>
-          {STATUS_LABELS[h.status]}
+          {statusWithIcon(h.status)}
         </span>
         <span className="tree-hyp-title">{h.title}</span>
         <span className="tree-expand-icon">{expanded ? '▲' : '▼'}</span>
       </button>
       {expanded && (
         <div className="tree-step-list">
-          {h.associationSteps.map(step => (
-            <div key={step.depth} className="tree-step-item">
+          {h.associationSteps.map((step, i) => (
+            <div key={`${step.depth}-${i}`} className="tree-step-item">
               <span className="step-num" style={{ width: 28, height: 28, fontSize: 12 }}>{step.depth}</span>
               <div>
                 <p className="step-label">{step.label}</p>
@@ -62,8 +42,8 @@ function HypBranch({ h, expanded, onToggle }: {
           {h.invalidationConditions.length > 0 && (
             <div style={{ padding: '8px 0 0', borderTop: '1px dashed var(--border)', marginTop: 4 }}>
               <p className="eyebrow" style={{ marginBottom: 4 }}>失敗条件</p>
-              {h.invalidationConditions.map(c => (
-                <p key={c} style={{ margin: '2px 0', fontSize: 12, color: 'var(--text-3)' }}>✕ {c}</p>
+              {h.invalidationConditions.map((c, i) => (
+                <p key={`${i}-${c}`} style={{ margin: '2px 0', fontSize: 12, color: 'var(--text-3)' }}>✕ {c}</p>
               ))}
             </div>
           )}
@@ -88,7 +68,7 @@ export function EventTree({ events, hypotheses }: Props) {
           <div key={ev.id} className="tree-event-block">
             <div className="tree-event-node">
               <span className={`badge badge-${ev.category}`}>
-                {CATEGORY_LABELS[ev.category] ?? ev.category}
+                {categoryLabel(ev.category)}
               </span>
               <p className="tree-event-title">{ev.title}</p>
               <span className="date-label">{ev.occurredAt}</span>

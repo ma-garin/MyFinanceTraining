@@ -16,16 +16,19 @@ const load = <T>(key: string, fallback: T): T => {
   }
 };
 
-const save = <T>(key: string, value: T): void => {
+// 呼び出し側が利用者に失敗を伝えられるよう、成否を返す（BUG-07）
+const save = <T>(key: string, value: T): boolean => {
   try {
     localStorage.setItem(key, JSON.stringify(value));
+    return true;
   } catch (err) {
     console.error('aiStorage save failed:', err);
+    return false;
   }
 };
 
 export const loadAiSettings = (): AiSettings => load(SETTINGS_KEY, DEFAULT_SETTINGS);
-export const saveAiSettings = (s: AiSettings): void => save(SETTINGS_KEY, s);
+export const saveAiSettings = (s: AiSettings): boolean => save(SETTINGS_KEY, s);
 
 export const loadAiUsage = (): AiUsageRecord => {
   const today = todayStr();
@@ -40,14 +43,14 @@ export const loadAiUsage = (): AiUsageRecord => {
   };
 };
 
-export const saveAiUsage = (u: AiUsageRecord): void => save(USAGE_KEY, u);
+export const saveAiUsage = (u: AiUsageRecord): boolean => save(USAGE_KEY, u);
 
 export const loadAiCache = (): AiCacheEntry[] => load<AiCacheEntry[]>(CACHE_KEY, []);
 
 export const findCacheEntry = (key: string): AiCacheEntry | null =>
   loadAiCache().find(e => e.key === key) ?? null;
 
-export const addCacheEntry = (entry: AiCacheEntry): void => {
+export const addCacheEntry = (entry: AiCacheEntry): boolean => {
   const cache = loadAiCache().filter(e => e.key !== entry.key);
-  save(CACHE_KEY, [...cache, entry]);
+  return save(CACHE_KEY, [...cache, entry]);
 };

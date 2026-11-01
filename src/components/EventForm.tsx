@@ -1,15 +1,8 @@
 import { useState } from 'react';
 import type { MarketEvent, EventCategory } from '../domain/types';
+import { CATEGORY_OPTIONS } from '../ui/labels';
+import { todayStr } from '../utils/dateUtils';
 
-const CATEGORIES: { value: EventCategory; label: string }[] = [
-  { value: 'geopolitics', label: '地政学' },
-  { value: 'macro', label: 'マクロ経済' },
-  { value: 'commodity', label: 'コモディティ' },
-  { value: 'semiconductor', label: '半導体' },
-  { value: 'currency', label: '為替' },
-  { value: 'consumer', label: '消費者' },
-  { value: 'other', label: 'その他' },
-];
 
 type Props = {
   onAdd: (event: MarketEvent) => void;
@@ -18,7 +11,7 @@ type Props = {
 const emptyForm = () => ({
   title: '',
   category: 'geopolitics' as EventCategory,
-  occurredAt: new Date().toISOString().slice(0, 10),
+  occurredAt: todayStr(),
   summary: '',
 });
 
@@ -71,7 +64,7 @@ export function EventForm({ onAdd }: Props) {
             value={form.category}
             onChange={e => setForm(prev => ({ ...prev, category: e.target.value as EventCategory }))}
           >
-            {CATEGORIES.map(c => (
+            {CATEGORY_OPTIONS.map(c => (
               <option key={c.value} value={c.value}>{c.label}</option>
             ))}
           </select>

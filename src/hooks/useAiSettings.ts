@@ -10,9 +10,9 @@ export const useAiSettings = () => {
   const [settings, setSettings] = useState<AiSettings>(loadAiSettings);
   const [usage, setUsage]       = useState<AiUsageRecord>(loadAiUsage);
 
-  const updateSettings = useCallback((next: AiSettings) => {
+  const updateSettings = useCallback((next: AiSettings): boolean => {
     setSettings(next);
-    saveAiSettings(next);
+    return saveAiSettings(next);
   }, []);
 
   const canExecute = (): boolean => {
@@ -23,7 +23,7 @@ export const useAiSettings = () => {
     return daily < settings.dailyLimit && monthly < settings.monthlyLimit;
   };
 
-  const incrementUsage = useCallback(() => {
+  const incrementUsage = useCallback((): boolean => {
     const today = todayStr();
     const month  = monthStr();
     const next: AiUsageRecord = {
@@ -33,7 +33,7 @@ export const useAiSettings = () => {
       monthlyCount: (usage.month === month  ? usage.monthlyCount : 0) + 1,
     };
     setUsage(next);
-    saveAiUsage(next);
+    return saveAiUsage(next);
   }, [usage]);
 
   return { settings, usage, updateSettings, canExecute, incrementUsage };
