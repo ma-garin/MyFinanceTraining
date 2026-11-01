@@ -120,6 +120,9 @@
   .aflow-lines path.dim { opacity: .12; }
   .aflow-col { position: absolute; top: 0; bottom: 0; display: flex; flex-direction: column; justify-content: space-around; }
   .aflow-horizontal .aflow-node { padding: 4px 6px; font-size: 12px; }
+  /* 環境のフォント差で 2 行に折り返すと枠からはみ出すため、PC では 1 行に固定して省略する（全文は title） */
+  .aflow-horizontal .aflow-node { min-width: 0; }
+  .aflow-horizontal .aflow-node-label, .aflow-horizontal .aflow-merge { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
   .aflow-detail { flex: none; }
 }
 @media (min-width: 961px) and (max-width: 1199px) {
