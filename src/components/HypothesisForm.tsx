@@ -36,7 +36,8 @@ type Props = {
   onAdd: (hypothesis: Hypothesis) => void;
 };
 
-export function HypothesisForm({ events, onAdd }: Props) {
+// PC の段組み表示（HypothesisFormDesktop）と入力状態・検証・登録処理を共有する
+export function useHypothesisForm({ events, onAdd }: Props) {
   const [form, setForm] = useState(emptyForm);
   const [steps, setSteps] = useState<StepDraft[]>(emptySteps);
   const [error, setError] = useState('');
@@ -111,11 +112,15 @@ export function HypothesisForm({ events, onAdd }: Props) {
     setError('');
   };
 
-  return (
-    <form className="form-panel" onSubmit={handleSubmit} noValidate>
-      <h3>仮説を追加</h3>
-      {error && <p className="form-error">{error}</p>}
+  return { form, setForm, steps, updateStep, error, appliedTemplateId, setAppliedTemplateId, templates, handleApplyTemplate, handleSubmit };
+}
 
+export type FormApi = ReturnType<typeof useHypothesisForm>;
+
+export function BasicFields({ f, events }: { f: FormApi; events: MarketEvent[] }) {
+  const { form, setForm, setAppliedTemplateId } = f;
+  return (
+    <>
       <div className="form-group">
         <label htmlFor="hyp-title">仮説タイトル *</label>
         <input
@@ -171,78 +176,124 @@ export function HypothesisForm({ events, onAdd }: Props) {
           </select>
         </div>
       </div>
+    </>
+  );
+}
 
-      {templates.length > 0 && (
-        <div className="template-suggestions">
-          <p className="eyebrow">ルールベース提案 — クリックで自動入力</p>
-          <div className="template-chips">
-            {templates.map(t => (
-              <button
-                key={t.id}
-                type="button"
-                className={`template-chip-btn${appliedTemplateId === t.id ? ' applied' : ''}`}
-                onClick={() => handleApplyTemplate(t)}
-              >
-                {t.label}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
-      <fieldset className="step-fieldset">
-        <legend>連想ステップ（1〜5段階）</legend>
-        {steps.map((step, idx) => (
-          <div key={idx} className="step-row">
-            <span className="step-num">{idx + 1}</span>
-            <input
-              type="text"
-              placeholder={idx === 0 ? 'ニュース・起点イベント *' : `第${idx + 1}段階の連想`}
-              value={step.label}
-              onChange={e => updateStep(idx, 'label', e.target.value)}
-            />
-            <input
-              type="text"
-              placeholder="理由（任意）"
-              value={step.reason}
-              onChange={e => updateStep(idx, 'reason', e.target.value)}
-            />
-          </div>
+export function TemplateSuggestions({ f }: { f: FormApi }) {
+  const { templates, appliedTemplateId, handleApplyTemplate } = f;
+  if (templates.length === 0) return null;
+  return (
+    <div className="template-suggestions">
+      <p className="eyebrow">ルールベース提案 — クリックで自動入力</p>
+      <div className="template-chips">
+        {templates.map(t => (
+          <button
+            key={t.id}
+            type="button"
+            className={`template-chip-btn${appliedTemplateId === t.id ? ' applied' : ''}`}
+            onClick={() => handleApplyTemplate(t)}
+          >
+            {t.label}
+          </button>
         ))}
-      </fieldset>
-
-      <div className="form-group">
-        <label htmlFor="hyp-themes">対象テーマ（カンマ区切り）</label>
-        <input
-          id="hyp-themes"
-          type="text"
-          placeholder="例: ゲーム, 防衛, 小売"
-          value={form.targetThemes}
-          onChange={e => setForm(prev => ({ ...prev, targetThemes: e.target.value }))}
-        />
       </div>
+    </div>
+  );
+}
 
-      <div className="form-group">
-        <label htmlFor="hyp-stocks">候補銘柄（1行1件、コード＋銘柄名）</label>
-        <textarea
-          id="hyp-stocks"
-          rows={4}
-          placeholder={'8035 東京エレクトロン\n6857 アドバンテスト\n7974 任天堂（相対優位）'}
-          value={form.candidateStocks}
-          onChange={e => setForm(prev => ({ ...prev, candidateStocks: e.target.value }))}
-        />
-      </div>
+export function StepFields({ f }: { f: FormApi }) {
+  const { steps, updateStep } = f;
+  return (
+    <fieldset className="step-fieldset">
+      <legend>連想ステップ（1〜5段階）</legend>
+      {steps.map((step, idx) => (
+        <div key={idx} className="step-row">
+          <span className="step-num">{idx + 1}</span>
+          <input
+            type="text"
+            placeholder={idx === 0 ? 'ニュース・起点イベント *' : `第${idx + 1}段階の連想`}
+            value={step.label}
+            onChange={e => updateStep(idx, 'label', e.target.value)}
+          />
+          <input
+            type="text"
+            placeholder="理由（任意）"
+            value={step.reason}
+            onChange={e => updateStep(idx, 'reason', e.target.value)}
+          />
+        </div>
+      ))}
+    </fieldset>
+  );
+}
 
-      <div className="form-group">
-        <label htmlFor="hyp-invalidation">失敗条件（1行1件）</label>
-        <textarea
-          id="hyp-invalidation"
-          rows={3}
-          placeholder={'全面リスクオフ\n個別銘柄悪材料\n政策転換'}
-          value={form.invalidationConditions}
-          onChange={e => setForm(prev => ({ ...prev, invalidationConditions: e.target.value }))}
-        />
-      </div>
+export function ThemeField({ f }: { f: FormApi }) {
+  const { form, setForm } = f;
+  return (
+    <div className="form-group">
+      <label htmlFor="hyp-themes">対象テーマ（カンマ区切り）</label>
+      <input
+        id="hyp-themes"
+        type="text"
+        placeholder="例: ゲーム, 防衛, 小売"
+        value={form.targetThemes}
+        onChange={e => setForm(prev => ({ ...prev, targetThemes: e.target.value }))}
+      />
+    </div>
+  );
+}
+
+export function StocksField({ f, rows = 4 }: { f: FormApi; rows?: number }) {
+  const { form, setForm } = f;
+  return (
+    <div className="form-group">
+      <label htmlFor="hyp-stocks">候補銘柄（1行1件、コード＋銘柄名）</label>
+      <textarea
+        id="hyp-stocks"
+        rows={rows}
+        placeholder={'8035 東京エレクトロン\n6857 アドバンテスト\n7974 任天堂（相対優位）'}
+        value={form.candidateStocks}
+        onChange={e => setForm(prev => ({ ...prev, candidateStocks: e.target.value }))}
+      />
+    </div>
+  );
+}
+
+export function InvalidationField({ f, rows = 3 }: { f: FormApi; rows?: number }) {
+  const { form, setForm } = f;
+  return (
+    <div className="form-group">
+      <label htmlFor="hyp-invalidation">失敗条件（1行1件）</label>
+      <textarea
+        id="hyp-invalidation"
+        rows={rows}
+        placeholder={'全面リスクオフ\n個別銘柄悪材料\n政策転換'}
+        value={form.invalidationConditions}
+        onChange={e => setForm(prev => ({ ...prev, invalidationConditions: e.target.value }))}
+      />
+    </div>
+  );
+}
+
+export function HypothesisForm({ events, onAdd }: Props) {
+  const f = useHypothesisForm({ events, onAdd });
+  return (
+    <form className="form-panel" onSubmit={f.handleSubmit} noValidate>
+      <h3>仮説を追加</h3>
+      {f.error && <p className="form-error">{f.error}</p>}
+
+      <BasicFields f={f} events={events} />
+
+      <TemplateSuggestions f={f} />
+
+      <StepFields f={f} />
+
+      <ThemeField f={f} />
+
+      <StocksField f={f} />
+
+      <InvalidationField f={f} />
 
       <button type="submit" className="btn btn-primary">仮説を登録</button>
     </form>

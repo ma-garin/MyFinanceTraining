@@ -1,0 +1,18 @@
+/* PC（961px 以上）の report 画面。styles/desktop.css の共通枠の上に足す */
+@media (min-width: 961px) {
+  .report-view .split-list { justify-content: flex-start; }
+  .report-view .split-list h3, .report-view .split-list p { margin: 0; font-size: 13px; }
+  .report-view .split-list h3 { font-size: 15px; }
+  .rp-grid { display: grid; align-items: center; gap: 8px; padding: 0 10px; font-size: 13px; }
+  .rp-grid > * { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin: 0; }
+  .rp-hyp { grid-template-columns: minmax(0, 1fr) 84px 52px 52px 60px 64px; }
+  .rp-theme { grid-template-columns: minmax(0, 1fr) 72px 52px 52px 64px; }
+  .rp-head { flex: none; height: 36px; box-sizing: border-box; color: var(--text-3); border-bottom: 1px solid var(--border); }
+  .rp-row { height: 40px; box-sizing: border-box; border-bottom: 1px solid var(--border); }
+  .rp-hist {
+    height: 64px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: center;
+    gap: 2px; padding: 0 10px; font-size: 13px; border-bottom: 1px solid var(--border);
+  }
+  .rp-hist > * { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .rp-hist > span { color: var(--text-3); }
+}

@@ -1,0 +1,86 @@
+/* PC（961px 以上）は画面全体も各枠もスクロールさせない。収まらない一覧はページ送り、詳細はタブで分ける */
+@media (min-width: 961px) {
+  html, body, #root { height: 100%; overflow: hidden; }
+  .app-shell { height: 100vh; min-height: 0; overflow: hidden; }
+  .sidebar { height: 100vh; overflow: hidden; }
+  .content {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    height: 100vh;
+    padding: 20px 24px;
+    overflow: hidden;
+  }
+  .content > * { flex: none; }
+  .content > .view-root {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    overflow: hidden;
+  }
+  .view-root > .view-header { flex: none; margin: 0; }
+  .view-root > .view-header p { margin: 2px 0 0; }
+  .view-root > .view-body { flex: 1 1 auto; min-height: 0; overflow: hidden; }
+
+  .split-pane {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: grid;
+    grid-template-columns: minmax(260px, 340px) minmax(0, 1fr);
+    gap: 16px;
+    overflow: hidden;
+  }
+  .split-list, .split-detail {
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    overflow: hidden;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 14px;
+  }
+  .split-list .fit-area, .split-detail .fit-area { flex: 1 1 auto; min-height: 0; overflow: hidden; }
+
+  .row-item {
+    height: 56px;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 2px;
+    padding: 6px 10px;
+    border-radius: var(--radius-xs);
+    border: 1px solid transparent;
+    background: none;
+    width: 100%;
+    text-align: left;
+    color: var(--text);
+    cursor: pointer;
+    font: inherit;
+  }
+  .row-item:hover { background: var(--surface-2); }
+  .row-item.selected { border-color: var(--brand-accent); background: var(--brand-glow); }
+  .row-item > * { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin: 0; }
+  .row-item .row-sub { font-size: 12px; color: var(--text-3); }
+
+  .pager { flex: none; display: flex; align-items: center; justify-content: center; gap: 10px; }
+  .pager-pos { font-size: 13px; color: var(--text-3); min-width: 56px; text-align: center; }
+
+  .tabs { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; gap: 10px; overflow: hidden; }
+  .tab-list { flex: none; display: flex; gap: 4px; border-bottom: 1px solid var(--border); }
+  .tab {
+    padding: 8px 14px;
+    border: none;
+    border-bottom: 2px solid transparent;
+    background: none;
+    color: var(--text-3);
+    font: inherit;
+    cursor: pointer;
+  }
+  .tab.active { color: var(--text); border-bottom-color: var(--brand-accent); font-weight: 600; }
+  .tab-panel { flex: 1 1 auto; min-height: 0; overflow: hidden; display: flex; flex-direction: column; gap: 10px; }
+}

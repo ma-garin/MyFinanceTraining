@@ -4,6 +4,8 @@ import type { AppState, Hypothesis, HypothesisStatus, HypothesisUrgency, Verific
 import { HypothesisForm } from '../components/HypothesisForm';
 import { HypothesisCard } from '../components/HypothesisCard';
 import { EventTree } from '../components/EventTree';
+import { useIsDesktop } from '../hooks/useIsDesktop';
+import { AssociationTreeDesktop } from './AssociationTreeDesktop';
 
 type FilterStatus = HypothesisStatus | 'all';
 type FilterUrgency = HypothesisUrgency | 'all';
@@ -34,7 +36,13 @@ type TreeProps = {
   onAddLog: (id: string, log: Omit<VerificationLog, 'id'>) => void;
 };
 
-export function AssociationTreeView({ state, onAdd, onStatusChange, onDelete, canExecuteAi, onAiIncrement, onAiApply, onAddLog }: TreeProps) {
+// PC（961px 以上）だけ 2 ペインの骨格に切り替える。スマホの表示は従来の縦並びのまま
+export function AssociationTreeView(props: TreeProps) {
+  const isDesktop = useIsDesktop();
+  return isDesktop ? <AssociationTreeDesktop {...props} /> : <AssociationTreeMobile {...props} />;
+}
+
+function AssociationTreeMobile({ state, onAdd, onStatusChange, onDelete, canExecuteAi, onAiIncrement, onAiApply, onAddLog }: TreeProps) {
   const [showForm, setShowForm] = useState(false);
   const [showTree, setShowTree] = useState(false);
   const [filterStatus, setFilterStatus] = useState<FilterStatus>('all');
