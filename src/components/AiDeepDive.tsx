@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { Hypothesis, MarketEvent, AiPromptType } from '../domain/types';
 import { generatePrompt, parsePastedResult } from '../services/aiService';
 import { findCacheEntry, addCacheEntry } from '../infrastructure/aiStorage';
@@ -24,6 +24,10 @@ export function AiDeepDive({ hypothesis, event, canExecute, onIncrement, onApply
   const [pasted, setPasted] = useState('');
   const [applied, setApplied] = useState(false);
   const [copied, setCopied] = useState(false);
+  // 再描画前の連打は古い props で判定されるため、同期フラグで 2 回目を止める（BUG-20）
+  const applyingRef = useRef(false);
+  // 取り込みが親に反映され新しい hypothesis が届いた時点で、次の取り込みを受け付ける
+  useEffect(() => { applyingRef.current = false; }, [hypothesis]);
   const [message, setMessage] = useState<{ kind: 'error' | 'info'; text: string } | null>(null);
 
   const cacheKey = `${hypothesis.id}:${promptType}`;
@@ -45,9 +49,11 @@ export function AiDeepDive({ hypothesis, event, canExecute, onIncrement, onApply
   };
 
   const handleApply = () => {
+    if (applyingRef.current) return;
     const { steps, conditions } = parsePastedResult(promptType, pasted);
     const decision = decideAiApply({ canExecute, hypothesis, steps, conditions });
     if (!decision.ok) { setMessage({ kind: 'error', text: decision.reason }); return; }
+    applyingRef.current = true;
     onApply(decision.merge.addedSteps, decision.merge.addedConditions);
     const cacheSaved = addCacheEntry({ key: cacheKey, prompt, result: pasted, createdAt: new Date().toISOString() });
     const usageSaved = onIncrement();

@@ -78,9 +78,9 @@ describe('parsePastedResult: association_expand', () => {
     expect(parsePastedResult('association_expand', '前置きです\n- 連想先: A / 理由: B').steps).toHaveLength(1);
   });
 
-  it('件数の上限は設けていない（6件以上でもそのまま返す。最大5件の制限は無い）', () => {
+  it('BUG-15: 連想は最大 5 段で打ち切る（先頭 5 件を残す）', () => {
     const raw = Array.from({ length: 7 }, (_, i) => `- 連想先: L${i} / 理由: R${i}`).join('\n');
-    expect(parsePastedResult('association_expand', raw).steps).toHaveLength(7);
+    expect(parsePastedResult('association_expand', raw).steps.map(s => s.label)).toEqual(['L0', 'L1', 'L2', 'L3', 'L4']);
   });
 
   it('空文字・空白のみ・箇条書き無しは空の steps', () => {
@@ -113,5 +113,17 @@ describe('parsePastedResult: counter_scenario', () => {
   it('件数の上限は設けていない', () => {
     const raw = Array.from({ length: 8 }, (_, i) => `- C${i}`).join('\n');
     expect(parsePastedResult('counter_scenario', raw).conditions).toHaveLength(8);
+  });
+});
+
+import { parsePastedResult as parse2 } from './aiService';
+describe('BUG-15・16 連想拡張の解析', () => {
+  it('・ 始まりの行も拾い、最大 5 段で打ち切る', () => {
+    const text = ['・連想先: A / 理由: r', '- B', '1. C', '2. D', '3. E', '4. F'].join('\n');
+    const { steps } = parse2('association_expand', text);
+    expect(steps.map(s => s.label)).toEqual(['A', 'B', 'C', 'D', 'E']);
+  });
+  it('本文中の "1.5倍" は番号として削らない', () => {
+    expect(parse2('counter_scenario', '- 原油が1.5倍になる').conditions).toEqual(['原油が1.5倍になる']);
   });
 });

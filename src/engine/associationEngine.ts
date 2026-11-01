@@ -1,11 +1,19 @@
 import type { MarketEvent, AssociationStep } from '../domain/types';
 import { ASSOCIATION_RULES, type AssociationTemplate } from './rules';
 
+// 英字キーワードを部分一致にすると "AI" が "mail" に当たる（BUG-14）。英数字だけの語は単語境界で照合する
+const ASCII_WORD = /^[a-z0-9]+$/;
+const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+export const matchesKeyword = (text: string, kw: string): boolean => {
+  const k = kw.toLowerCase();
+  return ASCII_WORD.test(k) ? new RegExp(`(^|[^a-z0-9])${escapeRe(k)}([^a-z0-9]|$)`).test(text) : text.includes(k);
+};
+
 const scoreTemplate = (rule: AssociationTemplate, event: MarketEvent, text: string): number => {
   let score = 0;
   if (rule.categories.includes(event.category)) score += 2;
   rule.keywords.forEach(kw => {
-    if (text.includes(kw.toLowerCase())) score += 1;
+    if (matchesKeyword(text, kw)) score += 1;
   });
   return score;
 };

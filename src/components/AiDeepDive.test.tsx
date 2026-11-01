@@ -63,3 +63,15 @@ describe('AiDeepDive BUG-08 clipboard 失敗', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('コピーできませんでした');
   });
 });
+
+describe('AiDeepDive BUG-20 連打', () => {
+  it('仮説が更新される前の 2 回目の取り込みは無視し、onApply・onIncrement は 1 回だけ', async () => {
+    const { user, onApply, onIncrement } = setup();
+    await open(user);
+    await user.click(screen.getByPlaceholderText(/AIの出力/));
+    await user.paste('1. 連想先: 原油高 / 理由: 供給不安');
+    await user.dblClick(applyBtn());
+    expect(onApply).toHaveBeenCalledTimes(1);
+    expect(onIncrement).toHaveBeenCalledTimes(1);
+  });
+});

@@ -1,3 +1,4 @@
+import { MAX_STEPS } from '../domain/hypothesisRules';
 import type { Hypothesis, MarketEvent, AiPromptType } from '../domain/types';
 
 export const generatePrompt = (
@@ -47,6 +48,8 @@ ${condLines}
 - [失敗条件の内容]`;
 };
 
+const LIST_ITEM = /^(?:[-・]|\d+\.)\s*/;
+
 export const parsePastedResult = (
   type: AiPromptType,
   rawText: string,
@@ -54,21 +57,23 @@ export const parsePastedResult = (
   const lines = rawText.split('\n').map(l => l.trim()).filter(Boolean);
 
   if (type === 'association_expand') {
+    // 連想は最大 5 段。'・' 始まりの行も箇条書きとして拾う（BUG-15・16）
     const steps = lines
-      .filter(l => l.startsWith('-') || l.match(/^\d+\./))
+      .filter(l => LIST_ITEM.test(l))
       .map(l => {
-        const body = l.replace(/^-\s*|\d+\.\s*/, '');
+        const body = l.replace(LIST_ITEM, '');
         const m = body.match(/連想先[：:]\s*(.+?)\s*[/／]\s*理由[：:]\s*(.+)/);
         if (m) return { label: m[1].trim(), reason: m[2].trim() };
         return { label: body.trim(), reason: '' };
       })
-      .filter(s => s.label !== '');
+      .filter(s => s.label !== '')
+      .slice(0, MAX_STEPS);
     return { steps, conditions: [] };
   }
 
   const conditions = lines
-    .filter(l => l.startsWith('-') || l.startsWith('・') || l.match(/^\d+\./))
-    .map(l => l.replace(/^[-・]\s*|\d+\.\s*/, '').trim())
+    .filter(l => LIST_ITEM.test(l))
+    .map(l => l.replace(LIST_ITEM, '').trim())
     .filter(Boolean);
   return { steps: [], conditions };
 };
