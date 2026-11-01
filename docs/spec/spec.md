@@ -417,7 +417,7 @@ ID は本ファイル内で採番。`docs/requirements.md` の番号との対応
 | ID | 項目 | 現状 |
 |---|---|---|
 | NFR-PWA | オフライン・ホーム画面追加 | `sw.js`（キャッシュ名 `my-finance-training-v4`）: install でルートと manifest を事前キャッシュ、navigation は network-first（オフライン時はキャッシュ）、静的資産は Stale-While-Revalidate。install の無条件 skipWaiting は廃止し、message `SKIP_WAITING` で skipWaiting する。`swUpdate.ts` が待機中の SW を検知し、`UpdateBanner` が「新しいバージョンがあります」「更新する」を表示。更新時は `controllerchange` で 1 回だけ reload。manifest は standalone・SVG アイコン 1 つ |
-| NFR-DESK | PC 幅（961px 以上）でスクロールしない | 画面全体も各枠も縦スクロールしない。一覧は枠に収まる件数ずつページ送り、詳細は 1 件をタブで切り替える（一覧＋詳細の 2 ペイン）。例外はバックテストの CSV 入力欄（長文を貼ったときの内部スクロール）。PC 版は EventTree の「🌲 ツリー表示」を出さない。検査: `scripts/check-no-scroll.mjs`（1280x650・1366x657・1920x969）と E2E `06-desktop-no-scroll` |
+| NFR-DESK | PC 幅（961px 以上）でスクロールしない | 画面全体も各枠も縦スクロールしない。一覧は枠に収まる件数ずつページ送り、詳細は 1 件をタブで切り替える（一覧＋詳細の 2 ペイン）。例外はバックテストの CSV 入力欄（長文を貼ったときの内部スクロール）。PC 版は EventTree の「🌲 ツリー表示」を出さない。**対応する最小サイズは 961x540**（ブラウザの枠を除く表示領域）。高さ 620px 以下は余白と見出しの補足文を省く。切れの定義: 縦・横のはみ出し、親の枠から出た部品、タブ名の折り返し（`…` の省略表示＋title は許容）。検査: E2E `06-desktop-no-scroll`（961x540・1280x600・1366x657・1920x969 × サンプル/大量データ × 全画面・全タブ。UI を変えたら必ず通す）と `scripts/check-no-scroll.mjs`（`--sizes` で任意サイズ） |
 | NFR-MOB | スマホ幅 | モバイルヘッダー＋ボトムナビ。表は横スクロール。最大幅 520px での確認が開発規約 |
 | NFR-SEC | 秘密情報 | APIキーを扱わない（AI は手動コピー）。外部通信なし |
 | NFR-PRIV | データの所在 | 端末の localStorage のみ。端末間同期なし |
@@ -480,3 +480,4 @@ severity は ISTQB の分類（Critical / High / Medium / Low）。v0.2 で解�
 | 2026-11-01 | v0.2 追補（`fix/v0.2-low-bugs`） | Low を解消: BUG-14（英数字キーワードは単語境界で照合）／15（連想の解析を最大 5 段で打ち切り）／16（`・` 始まりの行も拾う。番号除去を行頭に限定）／18（AI cache を最新 50 件に制限）／20（仮説更新前の連打を同期フラグで無視）／21（depth の飛び番を 1..n に詰め、AI 段は既存の最大 depth の後ろに追加） |
 | 2026-11-01 | v1.0（`feat/v1.0`、package.json 1.0.0） | スキーマ版 2 と `migrateState`（RISK-03 解消）／インポート差分表示と「取り込みを元に戻す」（`replaceState` 1 世代保持）／採否の理由と履歴（`StatusChange`・FR-HY-11）／AI `missing_angle`／バックテスト最大DD（FR-BT-05/08）／レポート画面（FR-RP）／SW v4 と更新通知バナー／IndexedDB 見送り（ADR-0004）。テスト: 単体 156 件・E2E 5 件（E2E-01 理由入力、E2E-03 差分と元に戻す、E2E-05 レポート）。レポートのスマホ幅で表が画面を押し広げた不具合は `.report-view` の `min-width:0` で解消 |
 | 2026-11-01 | `feat/desktop-no-scroll` | PC 幅のスクロールなしレイアウト（NFR-DESK）。7 画面を一覧＋詳細の 2 ペイン・ページ送り・タブに変更（スマホ幅は従来どおり）。`swUpdate` が監視開始時にインストール中の SW も追う。テスト: 単体 170 件・E2E 7 件（PC 幅 2 件）・`check-no-scroll` NG=0/42 |
+| 2026-11-01 | `fix/desktop-min-size` | PC の低い・狭い画面での切れを解消（設定の免責をタブへ、低い画面の余白縮小、タブ列の折り返し、入力欄の幅、バックテストの仮説 ID をページ送り、レポート表の列幅）。検査に全タブ・横方向・枠外・タブ折り返しと最小サイズ 961x540 を追加 |

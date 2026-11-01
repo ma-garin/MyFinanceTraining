@@ -16,3 +16,9 @@
   .rp-hist > * { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .rp-hist > span { color: var(--text-3); }
 }
+/* 狭い PC 幅では数値列を詰め、仮説名の列（省略表示＋title で全文）に幅を回す */
+@media (min-width: 961px) and (max-width: 1180px) {
+  .rp-grid { gap: 6px; padding: 0 6px; font-size: 12px; }
+  .rp-hyp { grid-template-columns: minmax(0, 1fr) 68px 36px 36px 44px 52px; }
+  .rp-theme { grid-template-columns: minmax(0, 1fr) 52px 36px 36px 52px; }
+}
