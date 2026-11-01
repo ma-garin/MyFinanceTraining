@@ -1,0 +1,35 @@
+/* 全体の書体: Noto Sans JP を同梱して外部通信なしで表示する（NFR-SEC/NFR-PRIV）。見出しは太さ 700 までに抑える */
+:root {
+  font-family: 'Noto Sans JP', ui-sans-serif, system-ui, sans-serif;
+  font-feature-settings: 'palt' 0;
+  line-height: 1.6;
+}
+h1, h2, h3, h4, strong, b { font-weight: 700; }
+.view-header h2 { font-weight: 700; letter-spacing: 0; }
+.eyebrow { font-weight: 600; letter-spacing: .04em; }
+
+/* PC のサイドメニュー: 明るく細い（約 180px）。濃紺の背景・ロゴ枠・発光をやめ、文字だけで現在地を示す */
+@media (min-width: 961px) {
+  .app-shell { grid-template-columns: 180px minmax(0, 1fr); }
+  .sidebar {
+    padding: 18px 10px;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+  }
+  .brand { padding: 4px 10px 0; margin-bottom: 18px; background: none; }
+  .brand-mark, .brand-text .eyebrow { display: none; }
+  .brand h1 { color: var(--text); font-size: 15px; font-weight: 700; letter-spacing: 0; }
+  .nav-list { gap: 2px; }
+  .nav-btn {
+    padding: 8px 10px;
+    color: var(--text-2);
+    font-size: 14px;
+    font-weight: 500;
+    border-radius: var(--radius-xs);
+  }
+  .nav-icon { font-size: 13px; width: 16px; opacity: .55; }
+  .nav-btn:hover { background: var(--surface-2); color: var(--text); }
+  .nav-btn.active { background: var(--surface-2); color: var(--text); font-weight: 700; box-shadow: inset 3px 0 0 var(--brand-accent); }
+  .sidebar .theme-toggle { color: var(--text-3); background: none; border: none; }
+  .sidebar .eyebrow { color: var(--text-3); }
+}
