@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
 import type { Hypothesis, Direction, HypothesisUrgency, MarketEvent } from '../domain/types';
+import { buildSteps } from '../domain/hypothesisRules';
 import { detectTemplates, applyTemplate, type AssociationTemplate } from '../engine/associationEngine';
 
 const DIRECTIONS: { value: Direction; label: string }[] = [
@@ -74,9 +75,7 @@ export function HypothesisForm({ events, onAdd }: Props) {
       return;
     }
 
-    const filledSteps = steps
-      .map((s, i) => ({ depth: (i + 1) as 1 | 2 | 3 | 4 | 5, label: s.label.trim(), reason: s.reason.trim() }))
-      .filter(s => s.label !== '');
+    const filledSteps = buildSteps(steps);
 
     const themes = form.targetThemes
       .split(/[,、]/)

@@ -427,3 +427,22 @@
   .filter-bar { padding: 10px 14px; }
   .filter-group { gap: 8px; }
 }
+
+/* v0.2: 復旧・保存失敗・インポート確認 */
+.save-error-banner {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #fee2e2;
+  color: #991b1b;
+  font-size: 13px;
+  font-weight: 600;
+}
+.recovery-shell { grid-template-columns: 1fr; }
+.recovery-card { max-width: 520px; margin: 24px auto; display: grid; gap: 8px; }
+.recovery-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.import-confirm { margin-bottom: 12px; border: 2px solid #dc2626; display: grid; gap: 8px; }
+.import-compare { border-collapse: collapse; font-size: 13px; }
+.import-compare th, .import-compare td { padding: 4px 10px; text-align: left; }
+.btn-danger { background: #dc2626; color: #fff; border: none; }
+.ai-info-msg { margin: 8px 0 0; font-size: 12px; color: var(--text-2, #475569); }

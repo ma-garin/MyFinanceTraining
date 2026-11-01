@@ -2,6 +2,8 @@ import { useState } from 'react';
 import type { Hypothesis, MarketEvent, AiPromptType } from '../domain/types';
 import { generatePrompt, parsePastedResult } from '../services/aiService';
 import { findCacheEntry, addCacheEntry } from '../infrastructure/aiStorage';
+import { decideAiApply } from '../application/aiApply';
+import { isoToTokyoDateStr } from '../utils/dateUtils';
 
 const PROMPT_TYPES: { value: AiPromptType; label: string; desc: string }[] = [
   { value: 'association_expand', label: '連想を深掘り', desc: '3〜5段階目の追加連想を生成' },
@@ -12,7 +14,7 @@ type Props = {
   hypothesis: Hypothesis;
   event: MarketEvent | undefined;
   canExecute: boolean;
-  onIncrement: () => void;
+  onIncrement: () => boolean;
   onApply: (steps: { label: string; reason: string }[], conditions: string[]) => void;
 };
 
@@ -22,22 +24,37 @@ export function AiDeepDive({ hypothesis, event, canExecute, onIncrement, onApply
   const [pasted, setPasted] = useState('');
   const [applied, setApplied] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [message, setMessage] = useState<{ kind: 'error' | 'info'; text: string } | null>(null);
 
   const cacheKey = `${hypothesis.id}:${promptType}`;
   const cached = findCacheEntry(cacheKey);
   const prompt = generatePrompt(promptType, hypothesis, event);
 
+  // 非 HTTPS・権限拒否・未対応ブラウザで clipboard は失敗する。黙って失敗させない（BUG-08）
   const handleCopy = async () => {
-    await navigator.clipboard.writeText(prompt);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
+    try {
+      if (!navigator.clipboard) throw new Error('clipboard unavailable');
+      await navigator.clipboard.writeText(prompt);
+      setMessage(null);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch (err) {
+      console.error('clipboard write failed:', err);
+      setMessage({ kind: 'error', text: 'コピーできませんでした。プロンプト欄を長押し（または選択）して手動でコピーしてください。' });
+    }
   };
 
   const handleApply = () => {
     const { steps, conditions } = parsePastedResult(promptType, pasted);
-    onApply(steps, conditions);
-    addCacheEntry({ key: cacheKey, prompt, result: pasted, createdAt: new Date().toISOString() });
-    onIncrement();
+    const decision = decideAiApply({ canExecute, hypothesis, steps, conditions });
+    if (!decision.ok) { setMessage({ kind: 'error', text: decision.reason }); return; }
+    onApply(decision.merge.addedSteps, decision.merge.addedConditions);
+    const cacheSaved = addCacheEntry({ key: cacheKey, prompt, result: pasted, createdAt: new Date().toISOString() });
+    const usageSaved = onIncrement();
+    const added = `連想 ${decision.merge.addedSteps.length} 件・失敗条件 ${decision.merge.addedConditions.length} 件を追加しました。`;
+    setMessage(cacheSaved && usageSaved
+      ? { kind: 'info', text: added }
+      : { kind: 'error', text: `${added} ただし実行回数またはキャッシュを保存できませんでした（ブラウザの保存容量を確認してください）。` });
     setApplied(true);
     setTimeout(() => setApplied(false), 2000);
   };
@@ -88,7 +105,7 @@ export function AiDeepDive({ hypothesis, event, canExecute, onIncrement, onApply
         </div>
         {cached && (
           <button className="btn btn-sm btn-ghost" onClick={loadCached}>
-            キャッシュを読み込む（{cached.createdAt.slice(0, 10)}）
+            キャッシュを読み込む（{isoToTokyoDateStr(cached.createdAt)}）
           </button>
         )}
       </div>
@@ -106,11 +123,16 @@ export function AiDeepDive({ hypothesis, event, canExecute, onIncrement, onApply
 
       <button
         className="btn btn-primary"
-        disabled={!pasted.trim() || applied}
+        disabled={!canExecute || !pasted.trim() || applied}
         onClick={handleApply}
       >
         {applied ? '✓ 取り込み完了' : '仮説に取り込む'}
       </button>
+      {message && (
+        <p className={message.kind === 'error' ? 'ai-limit-msg' : 'ai-info-msg'} role={message.kind === 'error' ? 'alert' : 'status'}>
+          {message.text}
+        </p>
+      )}
     </div>
   );
 }

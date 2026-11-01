@@ -1,50 +1,14 @@
 import { useState } from 'react';
-import type { Hypothesis, HypothesisStatus, HypothesisUrgency, MarketEvent, VerificationLog, VerificationLogResult } from '../domain/types';
+import type { Hypothesis, HypothesisStatus, MarketEvent, VerificationLog, VerificationLogResult } from '../domain/types';
 import { AiDeepDive } from './AiDeepDive';
 import { todayStr } from '../utils/dateUtils';
+import { STATUS_LABELS, STATUS_ICONS, DIRECTION_LABELS, URGENCY_LABELS, VLOG_LABELS, categoryLabel } from '../ui/labels';
 
-const STATUS_LABELS: Record<HypothesisStatus, string> = {
-  adopted: '採用',
-  watching: '様子見',
-  rejected: '棄却',
-  needs_test: '要検証',
-};
 
-const DIRECTION_LABELS: Record<string, string> = {
-  up:    '↑ 上昇',
-  down:  '↓ 下落',
-  mixed: '↔ 混在',
-  watch: '? 様子見',
-};
 
-const CATEGORY_LABELS: Record<string, string> = {
-  geopolitics:   '地政学',
-  macro:         'マクロ',
-  commodity:     'コモディティ',
-  semiconductor: '半導体',
-  currency:      '為替',
-  consumer:      '消費者',
-  other:         'その他',
-};
 
-const STATUS_ICONS: Record<string, string> = {
-  adopted:    '✓',
-  watching:   '👁',
-  rejected:   '✕',
-  needs_test: '🧪',
-};
 
-const URGENCY_LABELS: Record<HypothesisUrgency, string> = {
-  high:   '🔴 今週中',
-  medium: '🟡 今月中',
-  low:    '🔵 長期',
-};
 
-const VLOG_LABELS: Record<VerificationLogResult, string> = {
-  hit:     '✓ 的中',
-  miss:    '✕ 外れ',
-  pending: '⏳ 様子見',
-};
 
 type Props = {
   hypothesis: Hypothesis;
@@ -52,7 +16,7 @@ type Props = {
   onStatusChange: (id: string, status: HypothesisStatus) => void;
   onDelete?: (id: string) => void;
   canExecuteAi: boolean;
-  onAiIncrement: () => void;
+  onAiIncrement: () => boolean;
   onAiApply: (id: string, steps: { label: string; reason: string }[], conditions: string[]) => void;
   onAddLog?: (id: string, log: Omit<VerificationLog, 'id'>) => void;
 };
@@ -97,7 +61,7 @@ export function HypothesisCard({
           {event && (
             <p className="event-ref">
               <span className={`badge badge-${event.category}`}>
-                {CATEGORY_LABELS[event.category] ?? event.category}
+                {categoryLabel(event.category)}
               </span>
               {event.title}
             </p>
@@ -133,8 +97,8 @@ export function HypothesisCard({
       </div>
 
       <ol className="timeline">
-        {h.associationSteps.map(step => (
-          <li key={step.depth}>
+        {h.associationSteps.map((step, i) => (
+          <li key={`${step.depth}-${i}`}>
             <span>{step.depth}</span>
             <div>
               <p className="step-label">{step.label}</p>
@@ -170,8 +134,8 @@ export function HypothesisCard({
         <div className="invalidation-block">
           <p className="eyebrow">失敗条件</p>
           <ul className="invalidation-list">
-            {h.invalidationConditions.map(cond => (
-              <li key={cond}>{cond}</li>
+            {h.invalidationConditions.map((cond, i) => (
+              <li key={`${i}-${cond}`}>{cond}</li>
             ))}
           </ul>
         </div>

@@ -1,22 +1,46 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import type {
   AppState, MarketEvent, Hypothesis, HypothesisStatus,
-  AssociationStep, VerificationLog,
+  VerificationLog,
 } from '../domain/types';
-import { loadState, saveState } from '../infrastructure/storage';
+import { loadState, saveState, backupCorruptRaw, readRawState, type LoadResult } from '../infrastructure/storage';
+import { mergeAiResult } from '../domain/hypothesisRules';
 import { initialState } from '../data/sampleData';
 
 const DEBOUNCE_MS = 300;
 
+export type Recovery = { raw: string; reason: string };
+
+const initFrom = (r: LoadResult): { state: AppState; recovery: Recovery | null } =>
+  r.kind === 'ok' ? { state: r.state, recovery: null }
+  : r.kind === 'empty' ? { state: initialState, recovery: null }
+  : { state: initialState, recovery: { raw: r.raw, reason: r.reason } };
+
 export const useStore = () => {
-  const [state, setState] = useState<AppState>(() => loadState() ?? initialState);
+  const [boot] = useState(() => initFrom(loadState()));
+  const [state, setState] = useState<AppState>(boot.state);
+  const [recovery, setRecovery] = useState<Recovery | null>(boot.recovery);
+  const [saveError, setSaveError] = useState(false);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // 復旧待ちの間に保存すると破損データを初期データで上書きして失う（BUG-06）
   useEffect(() => {
+    if (recovery) return;
     if (saveTimer.current) clearTimeout(saveTimer.current);
-    saveTimer.current = setTimeout(() => saveState(state), DEBOUNCE_MS);
+    saveTimer.current = setTimeout(() => setSaveError(!saveState(state)), DEBOUNCE_MS);
     return () => { if (saveTimer.current) clearTimeout(saveTimer.current); };
-  }, [state]);
+  }, [state, recovery]);
+
+  const resolveRecoveryByReset = useCallback((): boolean => {
+    if (!recovery) return true;
+    // 読み取り失敗で raw が空のとき、無事な実データを初期データで上書きしないよう読み直して退避する
+    const raw = recovery.raw || readRawState();
+    if (raw === undefined) return false;
+    if (raw && !backupCorruptRaw(raw)) return false;
+    setState(initialState);
+    setRecovery(null);
+    return true;
+  }, [recovery]);
 
   const addEvent = useCallback((event: MarketEvent) => {
     setState(prev => ({ ...prev, events: [...prev.events, event] }));
@@ -40,21 +64,8 @@ export const useStore = () => {
   ) => {
     setState(prev => ({
       ...prev,
-      hypotheses: prev.hypotheses.map(h => {
-        if (h.id !== id) return h;
-        const existingDepths = h.associationSteps.map(s => s.depth);
-        const nextDepth = (Math.max(0, ...existingDepths) + 1) as AssociationStep['depth'];
-        const stepsToAdd: AssociationStep[] = newSteps.slice(0, 5 - h.associationSteps.length).map((s, i) => ({
-          depth: Math.min(5, nextDepth + i) as AssociationStep['depth'],
-          label: s.label,
-          reason: s.reason,
-        }));
-        return {
-          ...h,
-          associationSteps: [...h.associationSteps, ...stepsToAdd],
-          invalidationConditions: [...h.invalidationConditions, ...newConditions],
-        };
-      }),
+      hypotheses: prev.hypotheses.map(h =>
+        h.id === id ? mergeAiResult(h, newSteps, newConditions).hypothesis : h),
     }));
   }, []);
 
@@ -91,6 +102,9 @@ export const useStore = () => {
 
   return {
     state,
+    recovery,
+    saveError,
+    resolveRecoveryByReset,
     addEvent,
     addHypothesis,
     updateHypothesisStatus,
