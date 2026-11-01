@@ -7,6 +7,7 @@ import { useFitCount } from '../hooks/useFitCount';
 import { Pager } from '../components/desktop/Pager';
 import { SplitPane } from '../components/desktop/SplitPane';
 import { Tabs } from '../components/desktop/Tabs';
+import { PagedRows, TextRow } from '../components/PagedRows';
 import { parsePriceCsv, parseEventCsv, PRICE_CSV_SAMPLE, EVENT_CSV_SAMPLE } from '../services/csvParser';
 
 const pct = (n: number) => `${(n * 100).toFixed(1)}%`;
@@ -89,9 +90,8 @@ export function BacktestView({ hypotheses }: { hypotheses: Hypothesis[] }) {
           { id: 'bt-ids', label: '仮説ID', content: (
             <>
               <p className="bt-hint">hypothesis_id は登録済み仮説ID、または任意の文字列</p>
-              <div className="template-chips bt-ids">
-                {hypotheses.slice(0, 12).map(h => <span key={h.id} className="template-chip-btn" style={{ cursor: 'default' }}>{h.id}</span>)}
-              </div>
+              <PagedRows items={hypotheses} label="仮説ID" empty="登録済みの仮説はありません"
+                keyOf={h => h.id} renderRow={h => <TextRow main={h.id} sub={h.title} />} />
             </>
           ) },
         ]} />

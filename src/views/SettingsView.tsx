@@ -107,8 +107,8 @@ export function SettingsView({ settings, usage, onUpdate, onExport, onImport, ca
           <Tabs label="設定" tabs={[
             { id: 'ai', label: 'AI 深掘り設定', content: aiCard },
             { id: 'data', label: 'データ管理', content: dataCard },
+            { id: 'notice', label: '免責事項', content: noticeCard },
           ]} />
-          {noticeCard}
         </div>
       ) : (
         <>

@@ -1,14 +1,16 @@
 // PC 幅で全画面が「スクロールなし・はみ出しなし」かを確かめる。
-// 使い方: node scripts/check-no-scroll.mjs [--port 4191] [--views report,settings] [--out <dir>]
+// 使い方: node scripts/check-no-scroll.mjs [--port 4191] [--views report,settings] [--out <dir>] [--sizes 1280x650,1000x560]
 // vite の開発サーバをこのスクリプト内で起動し、終わったら止める（利用者の 5173 には触らない）
 import { createServer } from 'vite';
 import { chromium } from 'playwright';
 import { parseArgs } from 'node:util';
 
-const { values } = parseArgs({ options: { port: { type: 'string', default: '4191' }, views: { type: 'string', default: '' }, out: { type: 'string', default: '' } } });
+const { values } = parseArgs({ options: { port: { type: 'string', default: '4191' }, views: { type: 'string', default: '' }, out: { type: 'string', default: '' }, sizes: { type: 'string', default: '' } } });
 const VIEWS = [['dashboard', 'ダッシュボード'], ['event-input', 'イベント'], ['association-tree', '連想ツリー'], ['hypothesis-detail', '仮説詳細'], ['backtest', 'バックテスト'], ['report', 'レポート'], ['settings', '設定']];
 const only = values.views ? values.views.split(',') : null;
-const VIEWPORTS = [{ width: 1280, height: 650 }, { width: 1366, height: 657 }, { width: 1920, height: 969 }];
+// 961x540 は対応する最小サイズ（NFR-DESK）。低い画面と一般的なノート PC・外部モニタを含める
+const DEFAULT_SIZES = '961x540,1100x620,1280x600,1366x657,1920x969';
+const VIEWPORTS = (values.sizes || DEFAULT_SIZES).split(',').map(s => { const [width, height] = s.split('x').map(Number); return { width, height }; });
 const KEY = 'myfinancetraining_v1';
 
 const inflate = (raw) => {
@@ -39,6 +41,26 @@ const inspect = () => {
       const tag = `${el.tagName.toLowerCase()}.${[...el.classList].join('.')}`;
       problems.push(`${cs.overflowY === 'hidden' || cs.overflowY === 'clip' ? 'clipped' : 'scroll'} ${tag} ${el.scrollHeight}>${el.clientHeight}`);
     }
+
+    if (el.scrollWidth > el.clientWidth + 1 && cs.textOverflow !== 'ellipsis' && ['auto', 'scroll', 'hidden', 'clip'].includes(cs.overflowX)) {
+      problems.push(`clipped-x ${el.tagName.toLowerCase()}.${[...el.classList].join('.')} ${el.scrollWidth}>${el.clientWidth}`);
+    }
+    const r = el.getBoundingClientRect();
+    if (r.width > 0 && r.height > 0) {
+      let a = el.parentElement;
+      while (a && a !== document.body && ['visible'].includes(getComputedStyle(a).overflowX) && getComputedStyle(a).overflowY === 'visible') a = a.parentElement;
+      if (a && a !== document.body) {
+        const ar = a.getBoundingClientRect();
+        if (r.right > ar.right + 1 || r.bottom > ar.bottom + 1 || r.left < ar.left - 1) {
+          problems.push(`outside ${el.tagName.toLowerCase()}.${[...el.classList].join('.')} in ${a.tagName.toLowerCase()}.${[...a.classList].join('.')}`);
+        }
+      }
+    }
+    if (el.getAttribute('role') === 'tab') {
+      const rg = document.createRange();
+      rg.selectNodeContents(el);
+      if (new Set([...rg.getClientRects()].map(c => Math.round(c.top))).size > 1) problems.push(`wrapped-tab ${el.textContent}`);
+    }
   }
   return problems;
 };
@@ -68,6 +90,14 @@ try {
         const errs = await page.locator('text=問題が発生しました').count();
         const problems = await page.evaluate(inspect);
         if (errs) problems.push('error screen shown');
+        // 最初のタブだけでなく、全タブを開いて同じ検査をする（2 つ目以降のタブの見切れを見逃さない）
+        const tabs = page.locator('.content [role="tab"]');
+        for (let t = 1; t < await tabs.count(); t++) {
+          await tabs.nth(t).click();
+          await page.waitForTimeout(120);
+          const name = (await tabs.nth(t).innerText()).trim();
+          for (const p of await page.evaluate(inspect)) problems.push(`[tab ${name}] ${p}`);
+        }
         checked++;
         const tag = `${dataset} ${vp.width}x${vp.height} ${view}`;
         if (values.out) await page.screenshot({ path: `${values.out}/${view}-${dataset}-${vp.width}x${vp.height}.png` });

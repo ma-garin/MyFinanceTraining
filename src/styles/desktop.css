@@ -84,3 +84,26 @@
   .tab.active { color: var(--text); border-bottom-color: var(--brand-accent); font-weight: 600; }
   .tab-panel { flex: 1 1 auto; min-height: 0; overflow: hidden; display: flex; flex-direction: column; gap: 10px; }
 }
+
+/* 低い画面（ノート PC・ブラウザ枠込みで 540〜620px）は余白と見出しの補足文を削って本体の高さを確保する */
+@media (min-width: 961px) and (max-height: 620px) {
+  .content { padding: 12px 18px; gap: 10px; }
+  .content > .view-root { gap: 10px; }
+  .view-root > .view-header { padding-top: 10px; padding-bottom: 10px; }
+  .view-root > .view-header p { display: none; }
+  .split-list, .split-detail { padding: 10px 12px; gap: 8px; }
+  .tabs { gap: 6px; }
+  .tab { padding: 6px 12px; }
+}
+
+/* 狭い詳細枠でもタブの文字を縦に割らない（列ごと折り返す）。入力欄とボタン列は枠の幅を超えない */
+@media (min-width: 961px) {
+  .tab-list { flex-wrap: wrap; row-gap: 0; }
+  .tab { white-space: nowrap; flex: none; }
+  .split-detail input, .split-detail select, .split-detail textarea { min-width: 0; max-width: 100%; box-sizing: border-box; }
+  .split-detail .form-row > * { min-width: 0; }
+  .split-detail .template-chips, .split-detail .ai-actions { flex-wrap: wrap; }
+}
+@media (min-width: 961px) and (max-width: 1180px) {
+  .split-pane { grid-template-columns: minmax(220px, 280px) minmax(0, 1fr); }
+}
