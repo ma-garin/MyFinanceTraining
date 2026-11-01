@@ -8,6 +8,7 @@ import { isoToTokyoDateStr } from '../utils/dateUtils';
 const PROMPT_TYPES: { value: AiPromptType; label: string; desc: string }[] = [
   { value: 'association_expand', label: '連想を深掘り', desc: '3〜5段階目の追加連想を生成' },
   { value: 'counter_scenario', label: '失敗条件を追加', desc: '反対シナリオ・失敗条件を生成' },
+  { value: 'missing_angle', label: '見落とし観点', desc: '見落としている観点を失敗条件として生成' },
 ];
 
 type Props = {

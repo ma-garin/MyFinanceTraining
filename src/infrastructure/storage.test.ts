@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import {
   STORAGE_KEY, CORRUPT_BACKUP_PREFIX, loadState, saveState, backupCorruptRaw, parseStateJson,
+  migrateState, CURRENT_SCHEMA_VERSION,
 } from './storage';
 import { makeState, makeHyp } from '../test/fixtures';
 
@@ -96,5 +97,27 @@ describe('Storage backupCorruptRaw (BUG-06)', () => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
     vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new Error('quota'); });
     expect(backupCorruptRaw('x')).toBeNull();
+  });
+});
+
+describe('Storage migrateState (v0.3 スキーマ版)', () => {
+  it('version 無しは v1 とみなし、statusHistory を空配列で補って現行版にする', () => {
+    const r = migrateState(makeState());
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.state.version).toBe(CURRENT_SCHEMA_VERSION);
+    expect(r.state.hypotheses.every(h => Array.isArray(h.statusHistory))).toBe(true);
+  });
+
+  it('既存の statusHistory は保持する', () => {
+    const history = [{ date: '2026-01-01T00:00:00.000Z', from: 'watching' as const, to: 'adopted' as const, reason: '検証で的中' }];
+    const r = migrateState(makeState({ hypotheses: [makeHyp({ statusHistory: history })] }));
+    expect(r.ok && r.state.hypotheses[0].statusHistory).toEqual(history);
+  });
+
+  it('現行より新しい版は読み込まず理由を返す（項目を落として失わない）', () => {
+    const r = parseStateJson(JSON.stringify({ ...makeState(), version: CURRENT_SCHEMA_VERSION + 1 }));
+    expect(r).toMatchObject({ ok: false });
+    expect(!r.ok && r.reason).toMatch(/新しい版/);
   });
 });

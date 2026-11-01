@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import type { Hypothesis, HypothesisStatus, MarketEvent, VerificationLog, VerificationLogResult } from '../domain/types';
 import { AiDeepDive } from './AiDeepDive';
+import { StatusChangeForm } from './StatusChangeForm';
+import { StatusHistory } from './StatusHistory';
 import { todayStr } from '../utils/dateUtils';
 import { STATUS_LABELS, STATUS_ICONS, DIRECTION_LABELS, URGENCY_LABELS, VLOG_LABELS, categoryLabel } from '../ui/labels';
 
@@ -13,7 +15,7 @@ import { STATUS_LABELS, STATUS_ICONS, DIRECTION_LABELS, URGENCY_LABELS, VLOG_LAB
 type Props = {
   hypothesis: Hypothesis;
   events: MarketEvent[];
-  onStatusChange: (id: string, status: HypothesisStatus) => void;
+  onStatusChange: (id: string, status: HypothesisStatus, reason: string) => void;
   onDelete?: (id: string) => void;
   canExecuteAi: boolean;
   onAiIncrement: () => boolean;
@@ -36,6 +38,7 @@ export function HypothesisCard({
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [logResult, setLogResult] = useState<VerificationLogResult>('pending');
   const [logNote, setLogNote] = useState('');
+  const [pendingStatus, setPendingStatus] = useState<HypothesisStatus | null>(null);
 
   const handleAddLog = () => {
     if (!onAddLog) return;
@@ -148,12 +151,24 @@ export function HypothesisCard({
             <button
               key={s}
               className={`status-btn${h.status === s ? ' active' : ''}`}
-              onClick={() => onStatusChange(h.id, s)}
+              onClick={() => { if (s !== h.status) setPendingStatus(s); }}
             >
               {STATUS_LABELS[s]}
             </button>
           ))}
         </div>
+        {pendingStatus && (
+          <StatusChangeForm
+            from={h.status}
+            to={pendingStatus}
+            onSubmit={reason => {
+              onStatusChange(h.id, pendingStatus, reason);
+              setPendingStatus(null);
+            }}
+            onCancel={() => setPendingStatus(null)}
+          />
+        )}
+        <StatusHistory history={h.statusHistory} />
       </div>
 
       {onAddLog && (

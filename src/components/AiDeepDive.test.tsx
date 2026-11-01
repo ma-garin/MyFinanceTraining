@@ -50,6 +50,19 @@ describe('AiDeepDive BUG-02 解析 0 件', () => {
   });
 });
 
+describe('AiDeepDive 見落とし観点', () => {
+  it('種別を選んで貼り付けると onApply の第2引数に条件が入る', async () => {
+    const { user, onApply } = setup();
+    await open(user);
+    await user.click(screen.getByRole('button', { name: /見落とし観点/ }));
+    await user.click(screen.getByPlaceholderText(/AIの出力/));
+    await user.paste('1. 逆方向の要因で需要減\n2. 時間軸のずれ');
+    await user.click(applyBtn());
+    expect(onApply).toHaveBeenCalledTimes(1);
+    expect(onApply.mock.calls[0][1]).toEqual(['逆方向の要因で需要減', '時間軸のずれ']);
+  });
+});
+
 describe('AiDeepDive BUG-08 clipboard 失敗', () => {
   it('writeText が reject するとエラー文 (role=alert)', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => {});

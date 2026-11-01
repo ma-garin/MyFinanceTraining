@@ -50,10 +50,14 @@ export const useStore = () => {
     setState(prev => ({ ...prev, hypotheses: [...prev.hypotheses, hypothesis] }));
   }, []);
 
-  const updateHypothesisStatus = useCallback((id: string, status: HypothesisStatus) => {
+  const updateHypothesisStatus = useCallback((id: string, status: HypothesisStatus, reason = '') => {
     setState(prev => ({
       ...prev,
-      hypotheses: prev.hypotheses.map(h => h.id === id ? { ...h, status } : h),
+      hypotheses: prev.hypotheses.map(h => {
+        if (h.id !== id || h.status === status) return h;
+        const change = { date: new Date().toISOString(), from: h.status, to: status, reason: reason.trim() };
+        return { ...h, status, statusHistory: [...(h.statusHistory ?? []), change] };
+      }),
     }));
   }, []);
 
@@ -96,9 +100,19 @@ export const useStore = () => {
     }));
   }, []);
 
+  // 取り込みは丸ごと置き換えるので、直前の状態を 1 世代だけ残して元に戻せるようにする
+  const [undoState, setUndoState] = useState<AppState | null>(null);
+
   const replaceState = useCallback((next: AppState) => {
-    setState(next);
+    setState(prev => { setUndoState(prev); return next; });
   }, []);
+
+  const undoReplace = useCallback((): boolean => {
+    if (!undoState) return false;
+    setState(undoState);
+    setUndoState(null);
+    return true;
+  }, [undoState]);
 
   return {
     state,
@@ -113,5 +127,7 @@ export const useStore = () => {
     deleteEvent,
     deleteHypothesis,
     replaceState,
+    canUndoReplace: undoState !== null,
+    undoReplace,
   };
 };

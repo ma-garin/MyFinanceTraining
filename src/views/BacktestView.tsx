@@ -95,7 +95,7 @@ export function BacktestView({ hypotheses }: { hypotheses: Hypothesis[] }) {
                     <th>勝率 T+1</th><th>勝率 T+3</th><th>勝率 T+5</th>
                     <th>平均 T+1</th><th>平均 T+3</th><th>平均 T+5</th>
                     <th>σ T+1</th><th>σ T+3</th><th>σ T+5</th>
-                    <th>T+5 最悪値</th>
+                    <th>T+5 最悪値</th><th>最大DD</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -116,6 +116,7 @@ export function BacktestView({ hypotheses }: { hypotheses: Hypothesis[] }) {
                       <td>{pct(s.stdDev3)}</td>
                       <td>{pct(s.stdDev5)}</td>
                       <td className="ret-neg">{pct(s.worstT5Return)}</td>
+                      <td className="ret-neg">{s.maxDrawdown === null ? '—' : pct(s.maxDrawdown)}</td>
                     </tr>
                   ))}
                 </tbody>

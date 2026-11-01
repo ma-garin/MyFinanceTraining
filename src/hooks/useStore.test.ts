@@ -121,3 +121,16 @@ describe('useStore Event / Hypothesis 特性', () => {
     expect(h.invalidationConditions).toEqual(['既存', '新規']);
   });
 });
+
+describe('useStore ステータス履歴', () => {
+  it('ステータス変更で statusHistory に from/to/reason が残り、同じステータスでは追記しない', () => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(makeState()));
+    const { result } = renderHook(() => useStore());
+    act(() => { result.current.updateHypothesisStatus('h-1', 'adopted', '決算が好調'); });
+    const h = result.current.state.hypotheses[0];
+    expect(h.statusHistory).toHaveLength(1);
+    expect(h.statusHistory?.[0]).toMatchObject({ from: 'watching', to: 'adopted', reason: '決算が好調' });
+    act(() => { result.current.updateHypothesisStatus('h-1', 'adopted', '再度'); });
+    expect(result.current.state.hypotheses[0].statusHistory).toHaveLength(1);
+  });
+});

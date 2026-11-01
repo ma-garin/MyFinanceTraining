@@ -37,6 +37,18 @@ export const sanitizeState = (s: AppState): AppState => {
   };
 };
 
+export const CURRENT_SCHEMA_VERSION = 2;
+
+// version 無し（v0.x）は 1 とみなす。新しい版で書かれたデータは読めない項目を落とすと失うので拒否する
+export const migrateState = (s: AppState): { ok: true; state: AppState } | { ok: false; reason: string } => {
+  const v = typeof s.version === 'number' ? s.version : 1;
+  if (v > CURRENT_SCHEMA_VERSION) return { ok: false, reason: `新しい版（v${v}）のデータのため読み込めません。アプリを更新してください` };
+  const hypotheses = v < 2
+    ? s.hypotheses.map(h => ({ ...h, statusHistory: Array.isArray(h.statusHistory) ? h.statusHistory : [] }))
+    : s.hypotheses;
+  return { ok: true, state: { ...s, version: CURRENT_SCHEMA_VERSION, hypotheses } };
+};
+
 export const parseStateJson = (raw: string): { ok: true; state: AppState } | { ok: false; reason: string } => {
   let parsed: unknown;
   try {
@@ -46,7 +58,7 @@ export const parseStateJson = (raw: string): { ok: true; state: AppState } | { o
   }
   if (!isValidState(parsed)) return { ok: false, reason: 'データの形式が想定と異なります' };
   try {
-    return { ok: true, state: sanitizeState(parsed) };
+    return migrateState(sanitizeState(parsed));
   } catch {
     return { ok: false, reason: 'データの形式が想定と異なります' };
   }

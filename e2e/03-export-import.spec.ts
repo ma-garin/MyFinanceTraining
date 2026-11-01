@@ -36,6 +36,8 @@ test('E2E-03 エクスポート→変更→インポートで置き換え／キ�
   await page.locator('input[type=file]').setInputFiles(file);
   const dlg = page.getByRole('dialog');
   await expect(dlg).toContainText('インポートで現在のデータを置き換えます');
+  // 差分プレビュー: 削除した 1 件が「追加」として戻る
+  await expect(dlg.getByTestId('diff-hypotheses')).toContainText('追加1 / 削除0');
   await dlg.getByRole('button', { name: 'キャンセル' }).click();
   await expect(dlg).toHaveCount(0);
   expect((await readStore(page)).hypotheses.length).toBe(n - 1);
@@ -47,4 +49,11 @@ test('E2E-03 エクスポート→変更→インポートで置き換え／キ�
   expect((await readStore(page)).hypotheses.length).toBe(n);
   await go(page, '仮説');
   await expect(card(page, 'E2E-03仮説A')).toBeVisible();
+
+  // 取り込みを元に戻すと取り込み前（n-1 件）に戻る
+  await go(page, '設定');
+  await page.getByRole('button', { name: '取り込みを元に戻す' }).click();
+  await expect(page.locator('.toast')).toContainText('取り込み前のデータに戻しました');
+  expect((await readStore(page)).hypotheses.length).toBe(n - 1);
+  await expect(page.getByRole('button', { name: '取り込みを元に戻す' })).toHaveCount(0);
 });
