@@ -16,11 +16,11 @@ describe('hypothesisRules buildSteps (BUG-03)', () => {
 });
 
 describe('hypothesisRules mergeAiResult (BUG-03/05)', () => {
-  it('空き depth へ割り当てる', () => {
+  it('BUG-21: 既存の最大 depth より後ろに割り当て、起点より前に並べない', () => {
     const h = makeHyp({ associationSteps: [{ depth: 1, label: 'a', reason: '' }, { depth: 3, label: 'c', reason: '' }] });
     const r = mergeAiResult(h, [{ label: 'x', reason: '' }, { label: 'y', reason: '' }], []);
-    expect(r.addedSteps.map(s => s.depth)).toEqual([2, 4]);
-    expect(r.hypothesis.associationSteps.map(s => s.depth)).toEqual([1, 2, 3, 4]);
+    expect(r.addedSteps.map(s => s.depth)).toEqual([4, 5]);
+    expect(r.hypothesis.associationSteps.map(s => s.label)).toEqual(['a', 'c', 'x', 'y']);
   });
   it('5 を超える分は切り捨て', () => {
     const h = makeHyp({ associationSteps: [{ depth: 1, label: 'a', reason: '' }] });
@@ -42,9 +42,13 @@ describe('hypothesisRules mergeAiResult (BUG-03/05)', () => {
 });
 
 describe('hypothesisRules normalizeStepDepths (BUG-03)', () => {
-  it('一意ならそのまま', () => {
-    const s = [{ depth: 1 as const, label: 'a', reason: '' }, { depth: 4 as const, label: 'b', reason: '' }];
+  it('1 からの連番ならそのまま', () => {
+    const s = [{ depth: 1 as const, label: 'a', reason: '' }, { depth: 2 as const, label: 'b', reason: '' }];
     expect(normalizeStepDepths(s)).toEqual(s);
+  });
+  it('BUG-21: 一意でも飛び番なら 1..n に詰める', () => {
+    const s = [{ depth: 1 as const, label: 'a', reason: '' }, { depth: 4 as const, label: 'b', reason: '' }];
+    expect(normalizeStepDepths(s).map(x => x.depth)).toEqual([1, 2]);
   });
   it('重複は depth 順（同値は元順）で 1..n', () => {
     const s = [
@@ -58,5 +62,18 @@ describe('hypothesisRules normalizeStepDepths (BUG-03)', () => {
     const s = [{ depth: 2 as const, label: 'a', reason: '' }, { depth: 2 as const, label: 'b', reason: '' }];
     normalizeStepDepths(s);
     expect(s.map(x => x.depth)).toEqual([2, 2]);
+  });
+});
+
+import { normalizeStepDepths as norm2, mergeAiResult as merge2 } from './hypothesisRules';
+import { makeHyp as mk2 } from '../test/fixtures';
+describe('BUG-21 depth の飛び番', () => {
+  it('飛び番は 1 からの連番に詰める', () => {
+    const s = norm2([{ depth: 2, label: 'a', reason: '' }, { depth: 3, label: 'b', reason: '' }]);
+    expect(s.map(x => x.depth)).toEqual([1, 2]);
+  });
+  it('AI 段は既存の最大 depth より後ろに足す', () => {
+    const h = mk2({ associationSteps: [{ depth: 2, label: 'a', reason: '' }] });
+    expect(merge2(h, [{ label: 'x', reason: '' }], []).addedSteps[0].depth).toBe(3);
   });
 });

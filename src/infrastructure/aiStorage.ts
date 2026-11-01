@@ -50,7 +50,9 @@ export const loadAiCache = (): AiCacheEntry[] => load<AiCacheEntry[]>(CACHE_KEY,
 export const findCacheEntry = (key: string): AiCacheEntry | null =>
   loadAiCache().find(e => e.key === key) ?? null;
 
+// 上限が無いと localStorage の容量を食い潰し本体データの保存まで失敗する（BUG-18）。古い順に捨てる
+export const MAX_CACHE_ENTRIES = 50;
 export const addCacheEntry = (entry: AiCacheEntry): boolean => {
   const cache = loadAiCache().filter(e => e.key !== entry.key);
-  return save(CACHE_KEY, [...cache, entry]);
+  return save(CACHE_KEY, [...cache, entry].slice(-MAX_CACHE_ENTRIES));
 };

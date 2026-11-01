@@ -46,8 +46,8 @@ describe('detectTemplates: スコア加点の固定', () => {
     expect(twice).toEqual(once);
   });
 
-  it('短いキーワード "AI" は部分一致で無関係な語にも反応する（現状挙動）', () => {
-    expect(ids(ev({ category: NO_CATEGORY, title: 'mail' }))).toEqual(['ai-demand-surge']);
+  it('BUG-14: 短いキーワード "AI" は "mail" のような無関係な語に反応しない', () => {
+    expect(ids(ev({ category: NO_CATEGORY, title: 'mail' }))).toEqual([]);
   });
 });
 
@@ -88,5 +88,17 @@ describe('applyTemplate: テンプレート適用結果', () => {
       expect(rule.steps.length).toBeGreaterThanOrEqual(1);
       expect(rule.steps.length).toBeLessThanOrEqual(5);
     }
+  });
+});
+
+import { matchesKeyword } from './associationEngine';
+describe('BUG-14 英字キーワードの単語境界', () => {
+  it('"ai" は "mail" に当たらず、"ai" 単体・日本語隣接には当たる', () => {
+    expect(matchesKeyword('new mail service', 'AI')).toBe(false);
+    expect(matchesKeyword('ai 需要が拡大', 'AI')).toBe(true);
+    expect(matchesKeyword('生成ai投資', 'AI')).toBe(true);
+  });
+  it('日本語キーワードは部分一致のまま', () => {
+    expect(matchesKeyword('原油価格が上昇', '原油')).toBe(true);
   });
 });

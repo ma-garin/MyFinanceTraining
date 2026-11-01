@@ -4,10 +4,11 @@ export const MAX_STEPS = 5;
 type Depth = AssociationStep['depth'];
 const ALL_DEPTHS: readonly Depth[] = [1, 2, 3, 4, 5];
 
-// depth は React key と連想の段番号を兼ねるので一意でなければならない（BUG-03）
+// depth は React key と連想の段番号を兼ねるので一意でなければならない（BUG-03）。
+// 飛び番も 1 からの連番に詰める。空き番号に後から段を足すと起点より前に並ぶため（BUG-21）
 export const normalizeStepDepths = (steps: readonly AssociationStep[]): AssociationStep[] => {
-  const unique = new Set(steps.map(s => s.depth)).size === steps.length;
-  if (unique || steps.length > MAX_STEPS) return [...steps];
+  const consecutive = steps.every((s, i) => s.depth === ALL_DEPTHS[i]);
+  if (consecutive || steps.length > MAX_STEPS) return [...steps];
   const sorted = steps.map((s, i) => ({ s, i })).sort((a, b) => a.s.depth - b.s.depth || a.i - b.i);
   return sorted.map(({ s }, i) => ({ ...s, depth: ALL_DEPTHS[i] }));
 };
@@ -30,8 +31,8 @@ export const mergeAiResult = (
   steps: readonly { label: string; reason: string }[],
   conditions: readonly string[],
 ): AiMergeResult => {
-  const used = new Set(h.associationSteps.map(s => s.depth));
-  const free = ALL_DEPTHS.filter(d => !used.has(d));
+  const maxUsed = Math.max(0, ...h.associationSteps.map(s => s.depth));
+  const free = ALL_DEPTHS.filter(d => d > maxUsed);
   const addedSteps: AssociationStep[] = steps
     .filter(s => s.label.trim())
     .slice(0, free.length)

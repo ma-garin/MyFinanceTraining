@@ -265,7 +265,7 @@ ID は本ファイル内で採番。`docs/requirements.md` の番号との対応
 | ID | 仕様 |
 |---|---|
 | FR-RB-01 | 仮説フォームで起点イベントを選ぶと、そのイベントに合うテンプレートを提案チップで表示 |
-| FR-RB-02 | スコア = カテゴリ一致 +2 ＋ キーワード 1 語一致ごとに +1（`title + summary` を小文字化して部分一致）。スコア > 0 を降順表示 |
+| FR-RB-02 | スコア = カテゴリ一致 +2 ＋ キーワード 1 語一致ごとに +1（`title + summary` を小文字化して照合。日本語は部分一致、英数字だけの語は単語境界で一致＝`matchesKeyword`）。スコア > 0 を降順表示 |
 | FR-RB-03 | チップを押すと、連想ステップ 5 行・対象テーマ・候補銘柄・失敗条件を**上書き**で自動入力（タイトル・方向性・緊急度は変えない）。適用中のチップを強調 |
 | FR-RB-04 | 起点イベントを変えると適用中の強調を解除（入力済みの値は残る） |
 
@@ -424,17 +424,11 @@ ID は本ファイル内で採番。`docs/requirements.md` の番号との対応
 
 ## 9. 既知の不具合・リスク（v0.2 時点・未解決のみ）
 
-severity は ISTQB の分類（Critical / High / Medium / Low）。v0.2 で解消した BUG-01〜12 は §10 に移した。投資ロジック（engine / parser）は v0.2 の変更対象外のため、以下は解消せず記載のみ。
+severity は ISTQB の分類（Critical / High / Medium / Low）。v0.2 で解消した BUG-01〜12 は §10 に移した。BUG-14〜16・18・20・21 は v0.2 の追補で解消し §10 に記載。以下は既知の制約として残す。
 
 | ID | sev | 内容 | 根拠 |
 |---|---|---|---|
-| BUG-14 | Low | キーワード部分一致で `AI` が `mail` 等に反応する | `associationEngine` |
-| BUG-15 | Low | `aiService` の parse は 5 段制限を持たない（domain の `mergeAiResult` が 5 段で切る。仕様として許容） | `aiService` |
-| BUG-16 | Low | 連想拡張の解析で `・` 始まりの行を拾わない | `aiService` |
 | BUG-17 | Low | `addBusinessDays` は祝日非対応（既知の制約） | `backtestEngine` |
-| BUG-18 | Low | AI cache に上限がない | `aiStorage` |
-| BUG-20 | Low | AI 取り込みを再描画前に 2 回押すと、2 回目は追加 0 件でも cache 保存と成功表示が走る（usage は二重加算されない） | `AiDeepDive` |
-| BUG-21 | Low | depth が飛び番のインポートデータに AI 段を足すと空き depth（例 1）に入り、起点の前に並ぶ | `hypothesisRules` |
 | 仕様判断 | — | 同一文言の失敗条件は禁止しない（表示 key は index ベース） | BUG-05 の扱い |
 | RISK-01 | — | E2E は代表フローのみ。実機（iOS Safari）での PWA 更新挙動は未検証 | — |
 | RISK-02 | — | 更新通知 UI がなく、新版は次回起動時に反映される | `sw.js` |
@@ -466,3 +460,4 @@ severity は ISTQB の分類（Critical / High / Medium / Low）。v0.2 で解�
 |---|---|---|
 | 2026-11-01 | `8f6ab6e` | 初版。現行コードと `docs/*.md` から逆起こし |
 | 2026-11-01 | v0.2（`chore/v0.2-stabilization`） | 安定化。テスト基盤（Vitest / Playwright / ESLint）導入、`App.tsx` を views/shell に分割、依存固定。解消: BUG-01（canExecute を `decideAiApply` と UI で判定）／02（0 件・全件重複は usage・cache を更新せず理由表示）／03（depth 一意化）／04（Asia/Tokyo 統一）／05（index key・冪等な取り込み）／06（corrupt 時は保存停止＋復旧画面）／07（saveError バナー）／08（手動コピー案内）／09（import 確認パネル）／10（`worstT5Return` へ改名）／11（SW v3・network-first）／12（詳細画面の選択フォールバック）。新規発見の BUG-13（CSV の桁区切り付き終値を 7 と誤読。桁区切りを除去し、数値として読めない値・列数が 3 でない行は除外して解消）と BUG-19（index.html の manifest/icon が base を二重付与し PWA manifest が読めない。Vite に base を付けさせて解消）を解消。BUG-14〜18（Low）を追加。独立レビューの指摘を解消: 保存データの null 要素・配列でない steps で白画面（`sanitizeState` で除去）／4 列以上・行末カンマの CSV が全行除外（ヘッダ列数まで許容）／詳細画面で仮説を切り替えても AI 貼り付け内容が残る（`key`）／初回直後のオフライン起動で JS 未キャッシュ（SW install で HTML の資産を事前キャッシュ）／読み取り失敗時の初期化で実データを上書き（初期化前に読み直して退避）。BUG-20・21（Low）を追加。ADR-0001〜0003 |
+| 2026-11-01 | v0.2 追補（`fix/v0.2-low-bugs`） | Low を解消: BUG-14（英数字キーワードは単語境界で照合）／15（連想の解析を最大 5 段で打ち切り）／16（`・` 始まりの行も拾う。番号除去を行頭に限定）／18（AI cache を最新 50 件に制限）／20（仮説更新前の連打を同期フラグで無視）／21（depth の飛び番を 1..n に詰め、AI 段は既存の最大 depth の後ろに追加） |
