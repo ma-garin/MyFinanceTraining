@@ -2,6 +2,9 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 import { watchRegistration } from './infrastructure/swUpdate';
+import '@fontsource/noto-sans-jp/400.css';
+import '@fontsource/noto-sans-jp/500.css';
+import '@fontsource/noto-sans-jp/700.css';
 import './styles.css';
 import './styles-extra.css';
 import './styles/desktop.css';
@@ -11,6 +14,7 @@ import './styles/desktop/association-tree.css';
 import './styles/desktop/backtest.css';
 import './styles/desktop/report.css';
 import './styles/desktop/settings.css';
+import './styles/shell.css';
 
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
   <React.StrictMode>

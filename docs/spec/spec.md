@@ -112,6 +112,7 @@
 | `src/components/{PagedRows,HypothesisDetailPane,AiDeepDiveDesktop,HypothesisFormDesktop}.tsx` | 41/130/96/60 | PC の行ページ送り・仮説詳細タブ 7 種・AI 深掘り・4 段の仮説フォーム | NFR-DESK, FR-HY, FR-AI |
 | `src/views/{AssociationTreeDesktop,HypothesisDetailDesktop}.tsx` | 131/66 | 連想ツリー・仮説詳細の PC 版 | NFR-DESK |
 | `src/styles/desktop.css`・`src/styles/desktop/*.css` | 86/— | PC で画面全体・各枠のスクロールを止めるレイアウト | NFR-DESK |
+| `src/styles/shell.css` | — | 本文フォント（Noto Sans JP。`@fontsource/noto-sans-jp` を同梱し外部通信なし）と PC 幅の明るく細いサイドバー（180px） | NFR-DESK |
 | `scripts/check-no-scroll.mjs` | 84 | 7 画面 × 2 データ × 3 解像度のスクロール検査 | NFR-DESK |
 | `public/sw.js` | — | Service Worker（navigation は network-first、静的資産は SWR） | NFR-PWA |
 | `src/**/*.test.ts(x)`・`src/test/`・`playwright.config.ts`・`eslint.config.js` | — | テスト・lint 設定 | NFR-QA |
@@ -482,3 +483,4 @@ severity は ISTQB の分類（Critical / High / Medium / Low）。v0.2 で解�
 | 2026-11-01 | `feat/desktop-no-scroll` | PC 幅のスクロールなしレイアウト（NFR-DESK）。7 画面を一覧＋詳細の 2 ペイン・ページ送り・タブに変更（スマホ幅は従来どおり）。`swUpdate` が監視開始時にインストール中の SW も追う。テスト: 単体 170 件・E2E 7 件（PC 幅 2 件）・`check-no-scroll` NG=0/42 |
 | 2026-11-01 | `fix/desktop-min-size` | PC の低い・狭い画面での切れを解消（設定の免責をタブへ、低い画面の余白縮小、タブ列の折り返し、入力欄の幅、バックテストの仮説 ID をページ送り、レポート表の列幅）。検査に全タブ・横方向・枠外・タブ折り返しと最小サイズ 961x540 を追加 |
 | 2026-11-01 | `ci/layout-gate` | `deploy.yml` に PC 幅の見切れ検査（`npm run test:layout`）を追加。見切れのある版は公開されない |
+| 2026-11-01 | `feat/font-sidebar` | 本文フォントを Noto Sans JP（同梱・400/500/700）に変更。PC 幅のサイドバーを白地・幅 180px・文字だけの細い形に変更 |
